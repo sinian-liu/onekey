@@ -39,36 +39,40 @@ if [ ! -f "$FLAG_FILE" ]; then
   touch "$FLAG_FILE"
 fi
 
-echo "请选择要执行的操作："
-echo "1. 安装v2ray脚本"
-echo "2. VPS一键测试脚本"
-echo "3. BBR安装"
-echo "输入 s 启动脚本"
+# 循环以允许用户输入选择
+while true; do
+  echo "请选择要执行的操作："
+  echo "1. 安装v2ray脚本"
+  echo "2. VPS一键测试脚本"
+  echo "3. BBR安装"
+  echo "输入 s 启动脚本"
+  
+  # 读取用户输入
+  read -n 1 choice
+  echo ""
 
-# 读取用户输入
-read -n 1 choice
-echo ""
-
-# 根据用户输入执行对应的命令
-case $choice in
-  1)
-    echo "正在安装v2ray脚本..."
-    wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-    ;;
-  2)
-    echo "正在执行VPS一键测试脚本..."
-    bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
-    ;;
-  3)
-    echo "正在安装BBR..."
-    wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
-    ;;
-  s)
-    echo "启动脚本..."
-    # 启动脚本逻辑
-    # 例如：执行其他功能或者配置
-    ;;
-  *)
-    echo "无效的输入，请重新运行脚本并选择正确的数字。"
-    ;;
-esac
+  # 根据用户输入执行对应的命令
+  case $choice in
+    1)
+      echo "正在安装v2ray脚本..."
+      wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+      ;;
+    2)
+      echo "正在执行VPS一键测试脚本..."
+      bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
+      ;;
+    3)
+      echo "正在安装BBR..."
+      wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
+      ;;
+    s)
+      echo "启动脚本..."
+      # 这里添加启动脚本的操作，或者让它根据需要执行具体任务
+      echo "脚本启动完成"
+      break
+      ;;
+    *)
+      echo "无效的输入，请重新运行脚本并选择正确的数字。"
+      ;;
+  esac
+done
