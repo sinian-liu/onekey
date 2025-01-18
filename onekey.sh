@@ -47,14 +47,14 @@ echo "3. BBR安装"
 echo "输入 s 启动脚本"
 
 # 等待用户输入
-read -n 1 -p "输入选项：" choice
+read -p "输入选项：" choice
 
 # 检查输入
 if [[ $choice == 's' ]]; then
   # 启动脚本逻辑
   echo "启动脚本..."
   echo "请输入选择的操作编号 (1, 2, 3)："
-  read -n 1 -p "操作编号：" op_choice
+  read -p "操作编号：" op_choice
 
   # 根据选择执行操作
   case $op_choice in
