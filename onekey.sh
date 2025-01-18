@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# 检查是否已经启动过脚本，记录一个标志文件
-FLAG_FILE="/root/onekey_installed.flag"
-
 # 检查系统类型并安装依赖
 install_dependencies() {
   echo "正在检测系统类型..."
@@ -32,32 +29,39 @@ install_dependencies() {
 }
 
 # 提供功能选择
-if [ ! -f "$FLAG_FILE" ]; then
-  # 如果是第一次运行，执行系统检测和安装依赖
-  install_dependencies
-  # 创建标志文件，表示脚本已经执行过
-  touch "$FLAG_FILE"
-fi
-
-# 用户输入选择功能
 echo "请选择要执行的操作："
 echo "1. 安装v2ray脚本"
 echo "2. VPS一键测试脚本"
 echo "3. BBR安装"
-echo "输入 s 启动脚本"
+echo "输入 s 显示菜单"
 
 # 等待用户输入
 read -p "输入选项：" choice
 
-# 检查输入
-if [[ $choice == 's' ]]; then
-  # 启动脚本逻辑
-  echo "启动脚本..."
-  echo "请输入选择的操作编号 (1, 2, 3)："
-  read -p "操作编号：" op_choice
+# 判断用户输入
+if [ "$choice" == "1" ]; then
+  # 执行安装v2ray脚本
+  echo "正在安装v2ray脚本..."
+  wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
 
-  # 根据选择执行操作
-  case $op_choice in
+elif [ "$choice" == "2" ]; then
+  # 执行 VPS 一键测试脚本
+  echo "正在执行VPS一键测试脚本..."
+  bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
+
+elif [ "$choice" == "3" ]; then
+  # 执行 BBR 安装脚本
+  echo "正在安装BBR..."
+  wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
+
+elif [ "$choice" == "s" ]; then
+  # 显示菜单
+  echo "请选择要执行的操作："
+  echo "1. 安装v2ray脚本"
+  echo "2. VPS一键测试脚本"
+  echo "3. BBR安装"
+  read -p "输入选项：" sub_choice
+  case $sub_choice in
     1)
       echo "正在安装v2ray脚本..."
       wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
@@ -74,6 +78,7 @@ if [[ $choice == 's' ]]; then
       echo "无效选择，请选择有效的操作编号 (1, 2, 3)"
       ;;
   esac
+
 else
   echo "无效的输入，脚本退出。"
 fi
