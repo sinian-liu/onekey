@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# 检查是否已经启动过脚本，记录一个标志文件
+FLAG_FILE="/root/onekey_installed.flag"
+
 # 检查系统类型并安装依赖
 install_dependencies() {
   echo "正在检测系统类型..."
@@ -29,6 +32,13 @@ install_dependencies() {
 }
 
 # 提供功能选择
+if [ ! -f "$FLAG_FILE" ]; then
+  # 如果是第一次运行，执行系统检测和安装依赖
+  install_dependencies
+  # 创建标志文件，表示脚本已经执行过
+  touch "$FLAG_FILE"
+fi
+
 echo "请选择要执行的操作："
 echo "1. 安装v2ray脚本"
 echo "2. VPS一键测试脚本"
@@ -42,22 +52,18 @@ echo ""
 # 根据用户输入执行对应的命令
 case $choice in
   1)
-    install_dependencies
     echo "正在安装v2ray脚本..."
     wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
     ;;
   2)
-    install_dependencies
     echo "正在执行VPS一键测试脚本..."
     bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
     ;;
   3)
-    install_dependencies
     echo "正在安装BBR..."
     wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
     ;;
   s)
-    install_dependencies
     echo "启动脚本..."
     # 启动的其他脚本命令放这里
     ;;
