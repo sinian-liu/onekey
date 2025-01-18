@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# 检查是否已经设置快捷命令 s
+# 设置 s 快捷命令，如果还没有设置
 if ! grep -q "alias s=" ~/.bashrc; then
     echo "正在为 s 设置快捷命令..."
-    # 创建 alias，设置快捷命令为执行当前脚本
     echo "alias s='bash /root/onekey.sh'" >> ~/.bashrc
     source ~/.bashrc
     echo "快捷命令 s 已设置。"
@@ -11,27 +10,34 @@ else
     echo "快捷命令 s 已经存在。"
 fi
 
-# 开始显示菜单和执行操作
-echo "请输入命令：s"
+# 显示菜单并选择操作
+clear
 echo "请选择要执行的操作："
 echo "1. 安装v2ray脚本"
 echo "2. VPS一键测试脚本"
 echo "3. BBR安装"
+echo "输入 s 启动此脚本"
 echo -n "输入选项: "
-read choice
 
-case $choice in
+read option
+
+case $option in
     1)
-        echo "正在安装 v2ray..."
-        # 安装 v2ray 脚本的命令
+        echo "安装v2ray脚本"
+        # 在这里添加 v2ray 安装脚本的代码
         ;;
     2)
-        echo "正在进行 VPS 测试..."
-        # VPS 测试脚本的命令
+        echo "VPS一键测试脚本"
+        # 在这里添加 VPS 测试脚本的代码
         ;;
     3)
-        echo "正在安装 BBR..."
-        # BBR 安装命令
+        echo "BBR安装"
+        # 在这里添加 BBR 安装脚本的代码
+        ;;
+    s)
+        echo "正在启动此脚本..."
+        # 重新执行当前脚本
+        bash /root/onekey.sh
         ;;
     *)
         echo "无效选择，请选择有效的操作编号 (1, 2, 3)"
