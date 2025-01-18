@@ -9,6 +9,9 @@ echo -n "请输入数字 (1/2/3): "
 
 read choice
 
+# 设置执行权限，确保脚本有可执行权限
+chmod +x /root/onekey.sh
+
 # 根据用户输入执行对应的命令
 case $choice in
   1)
