@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# 检查脚本是否已经下载
+# 检查是否存在脚本文件，如果不存在，则下载并赋予执行权限
 if [ ! -f /root/onekey.sh ]; then
-  echo "未找到脚本文件，正在下载..."
-  wget -O /root/onekey.sh https://github.com/sinian-liu/onekey/raw/main/onekey.sh && chmod +x /root/onekey.sh
+  echo "脚本文件未找到，正在下载..."
+  wget -O /root/onekey.sh https://github.com/sinian-liu/onekey/raw/main/onekey.sh
+  chmod +x /root/onekey.sh
+  echo "脚本下载完成，并赋予执行权限。"
 fi
 
-# 显示菜单并处理选择
+# 定义显示菜单的函数
 show_menu() {
   echo "请选择要执行的操作："
   echo "1. 安装v2ray脚本"
@@ -35,8 +37,8 @@ show_menu() {
   esac
 }
 
-# 允许用户输入 s 来显示菜单
-echo "输入 s 启动脚本"
+# 提示输入 's' 来显示菜单
+echo "输入 's' 启动脚本，显示菜单"
 read -p "请输入命令：" user_input
 
 if [ "$user_input" == "s" ]; then
