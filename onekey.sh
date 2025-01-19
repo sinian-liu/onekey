@@ -167,7 +167,7 @@ case $option in
 
     # 输出访问地址
     echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
-    echo -e "http://$server_ip:$mgmt_port/mgmt"
+    echo -e "${YELLOW}http://$server_ip:$mgmt_port/mgmt${RESET}"
     ;;
     7)
         # 宝塔纯净版安装
