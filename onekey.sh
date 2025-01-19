@@ -6,6 +6,45 @@ RED="\033[31m"
 YELLOW="\033[33m"
 RESET="\033[0m"
 
+# 系统检测函数
+check_system() {
+    if [ -f /etc/lsb-release ]; then
+        # Ubuntu/Debian 系统
+        SYSTEM="ubuntu"
+    elif [ -f /etc/redhat-release ]; then
+        # CentOS 系统
+        SYSTEM="centos"
+    elif [ -f /etc/fedora-release ]; then
+        # Fedora 系统
+        SYSTEM="fedora"
+    else
+        SYSTEM="unknown"
+    fi
+}
+
+# 系统更新函数
+update_system() {
+    check_system
+    if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+        # 对于 Debian/Ubuntu 系统
+        echo -e "${GREEN}正在更新 Debian/Ubuntu 系统...${RESET}"
+        sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt clean
+    elif [ "$SYSTEM" == "centos" ]; then
+        # 对于 CentOS 系统
+        echo -e "${GREEN}正在更新 CentOS 系统...${RESET}"
+        sudo yum update -y && sudo yum clean all
+    elif [ "$SYSTEM" == "fedora" ]; then
+        # 对于 Fedora 系统
+        echo -e "${GREEN}正在更新 Fedora 系统...${RESET}"
+        sudo dnf update -y && sudo dnf clean all
+    else
+        echo -e "${RED}无法识别您的操作系统，跳过更新步骤。${RESET}"
+    fi
+}
+
+# 更新系统
+update_system
+
 # 设置快捷命令 s
 if ! grep -q "alias s=" ~/.bashrc; then
     echo -e "${GREEN}正在为 s 设置快捷命令...${RESET}"
@@ -129,47 +168,34 @@ case $option in
         check_port $live_port
         if [ $? -eq 1 ]; then
             echo -e "${RED}端口 $live_port 已被占用！${RESET}"
-            read -p "请输入一个新的直播端口号 (默认为1935): " new_live_port
-            new_live_port=${new_live_port:-1935}
-            live_port=$new_live_port
+            read -p "请输入其他端口号作为直播端口: " live_port
         fi
 
         # 检查管理端口是否被占用
         check_port $mgmt_port
         if [ $? -eq 1 ]; then
             echo -e "${RED}端口 $mgmt_port 已被占用！${RESET}"
-            read -p "请输入一个新的管理端口号 (默认为2022): " new_mgmt_port
-            new_mgmt_port=${new_mgmt_port:-2022}
-            mgmt_port=$new_mgmt_port
+            read -p "请输入其他端口号作为管理端口: " mgmt_port
         fi
 
-        # 安装过程
-        sudo apt-get update
-        sudo apt-get install docker.io
-        docker run --restart always -d --name srs-stack -it -p $live_port:$live_port/tcp -p 1935:1935/tcp -p 1985:1985/tcp \
-          -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
-          -v $HOME/db:/data ossrs/srs-stack:5
-        echo -e "${GREEN}默认登录地址：http://你的服务器ip:$mgmt_port/mgmt${RESET}"
+        # 安装 SRS
+        bash <(curl -sSL https://github.com/ossrs/srs/releases/download/v5.0.19/srs-5.0.19-linux-x64.tar.gz) --port $live_port --mgmt-port $mgmt_port
         ;;
     7)
         # 宝塔纯净版安装
-        echo -e "${GREEN}正在安装宝塔纯净版...${RESET}"
-        
-        # 检查系统类型
-        if [ -f /etc/redhat-release ]; then
-            # CentOS 系统
-            echo -e "${GREEN}正在为 CentOS 安装宝塔...${RESET}"
-            yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
-        elif [ -f /etc/lsb-release ]; then
-            # Ubuntu/Debian 系统
-            echo -e "${GREEN}正在为 Ubuntu/Debian 安装宝塔...${RESET}"
+        echo -e "${GREEN}正在安装宝塔面板...${RESET}"
+        if [ -f /etc/lsb-release ]; then
+            # Ubuntu 或 Debian 系统
             wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && bash install.sh
+        elif [ -f /etc/redhat-release ]; then
+            # CentOS 系统
+            yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
         else
-            echo -e "${RED}无法识别您的操作系统，无法安装宝塔。${RESET}"
+            echo -e "${RED}无法识别您的操作系统，无法安装宝塔面板。${RESET}"
         fi
         ;;
     8)
-        # 配置 SSH 保持连接
+        # 长时间保持 SSH 会话连接不断开
         echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
         read -p "请输入每次心跳请求的间隔时间（单位：分钟，默认为5分钟）： " interval
         interval=${interval:-5}  # 默认值为5分钟
