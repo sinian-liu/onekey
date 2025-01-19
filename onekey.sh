@@ -42,19 +42,6 @@ update_system() {
     fi
 }
 
-# 更新系统
-update_system
-
-# 设置快捷命令 s
-if ! grep -q "alias s=" ~/.bashrc; then
-    echo -e "${GREEN}正在为 s 设置快捷命令...${RESET}"
-    echo "alias s='wget -O /root/onekey.sh https://github.com/sinian-liu/onekey/raw/main/onekey.sh && chmod +x /root/onekey.sh && /root/onekey.sh'" >> ~/.bashrc
-    source ~/.bashrc
-    echo -e "${GREEN}快捷命令 s 已设置。${RESET}"
-else
-    echo -e "${YELLOW}快捷命令 s 已经存在。${RESET}"
-fi
-
 # 提示用户输入选项
 echo -e "${GREEN}=============================================${RESET}"
 echo -e "${GREEN}服务器推荐：https://my.frantech.ca/aff.php?aff=4337${RESET}"
@@ -72,8 +59,9 @@ echo -e "${YELLOW}7. 宝塔纯净版安装${RESET}"
 echo -e "${YELLOW}8. 长时间保持 SSH 会话连接不断开${RESET}"
 echo -e "${YELLOW}9. 重启服务器${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
+echo -e "${YELLOW}11. 系统更新命令${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
-read -p "请输入选项 [1-10]:" option
+read -p "请输入选项 [1-11]:" option
 
 case $option in
     1)
@@ -180,7 +168,14 @@ case $option in
         fi
 
         # 安装 SRS
-        bash <(curl -sSL https://github.com/ossrs/srs/releases/download/v5.0.19/srs-5.0.19-linux-x64.tar.gz) --port $live_port --mgmt-port $mgmt_port
+        wget -O /usr/local/srs.tar.gz https://github.com/ossrs/srs/releases/download/v5.0.19/srs-5.0.19-linux-x64.tar.gz
+        tar -xzvf /usr/local/srs.tar.gz -C /usr/local
+        cd /usr/local/srs-5.0.19
+        ./configure --prefix=/usr/local/srs
+        make && make install
+
+        # 启动 SRS 服务
+        /usr/local/srs/bin/srs -c /usr/local/srs/conf/srs.conf --port $live_port --mgmt-port $mgmt_port
         ;;
     7)
         # 宝塔纯净版安装
@@ -227,6 +222,10 @@ case $option in
         ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         service crond restart
         echo -e "${GREEN}时区修改完成！当前时区已设置为中国时区。${RESET}"
+        ;;
+    11)
+        # 系统更新命令
+        update_system
         ;;
     *)
         echo -e "${RED}无效的选项，请重新选择！${RESET}"
