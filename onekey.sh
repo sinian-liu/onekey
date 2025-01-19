@@ -9,13 +9,10 @@ RESET="\033[0m"
 # 系统检测函数
 check_system() {
     if [ -f /etc/lsb-release ]; then
-        # Ubuntu/Debian 系统
         SYSTEM="ubuntu"
     elif [ -f /etc/redhat-release ]; then
-        # CentOS 系统
         SYSTEM="centos"
     elif [ -f /etc/fedora-release ]; then
-        # Fedora 系统
         SYSTEM="fedora"
     else
         SYSTEM="unknown"
@@ -26,15 +23,12 @@ check_system() {
 update_system() {
     check_system
     if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
-        # 对于 Debian/Ubuntu 系统
         echo -e "${GREEN}正在更新 Debian/Ubuntu 系统...${RESET}"
         sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y && sudo apt clean
     elif [ "$SYSTEM" == "centos" ]; then
-        # 对于 CentOS 系统
         echo -e "${GREEN}正在更新 CentOS 系统...${RESET}"
         sudo yum update -y && sudo yum clean all
     elif [ "$SYSTEM" == "fedora" ]; then
-        # 对于 Fedora 系统
         echo -e "${GREEN}正在更新 Fedora 系统...${RESET}"
         sudo dnf update -y && sudo dnf clean all
     else
@@ -42,13 +36,15 @@ update_system() {
     fi
 }
 
-# 快捷启动命令
-create_shortcut() {
-    echo -e "${GREEN}正在创建快捷启动命令...${RESET}"
-    echo "alias sinian='wget -qO- https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh | bash'" >> ~/.bashrc
+# 增加快捷命令 s 设置（如果没有的话）
+if ! grep -q "alias s=" ~/.bashrc; then
+    echo "正在为 s 设置快捷命令..."
+    echo "alias s='bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh)'" >> ~/.bashrc
     source ~/.bashrc
-    echo -e "${GREEN}快捷启动命令 'sinian' 创建成功！${RESET}"
-}
+    echo "快捷命令 s 已设置。"
+else
+    echo "快捷命令 s 已经存在。"
+fi
 
 # 提示用户输入选项
 echo -e "${GREEN}=============================================${RESET}"
@@ -69,6 +65,7 @@ echo -e "${YELLOW}9. 重启服务器${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 系统更新命令${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
+
 read -p "请输入选项 [1-11]:" option
 
 case $option in
@@ -90,11 +87,9 @@ case $option in
     4)
         # 永久禁用 IPv6
         echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
-        
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
         if [ -f /etc/lsb-release ]; then
             # Ubuntu 或 Debian 系统
-            echo -e "${GREEN}禁用 IPv6：${RESET}"
             sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
             echo "net.ipv6.conf.all.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
@@ -102,7 +97,6 @@ case $option in
             sudo sysctl -p
         elif [ -f /etc/redhat-release ]; then
             # CentOS 或 RHEL 系统
-            echo -e "${GREEN}禁用 IPv6：${RESET}"
             sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
             sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
             echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
@@ -111,16 +105,13 @@ case $option in
         else
             echo -e "${RED}无法识别您的操作系统，无法禁用 IPv6。${RESET}"
         fi
-        echo -e "${GREEN}IPv6 已禁用。${RESET}"
         ;;
     5)
         # 解除禁用 IPv6
         echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
-        
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
         if [ -f /etc/lsb-release ]; then
             # Ubuntu 或 Debian 系统
-            echo -e "${GREEN}启用 IPv6：${RESET}"
             sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
             sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
             sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
@@ -128,7 +119,6 @@ case $option in
             sudo sysctl -p
         elif [ -f /etc/redhat-release ]; then
             # CentOS 或 RHEL 系统
-            echo -e "${GREEN}启用 IPv6：${RESET}"
             sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
             sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
             sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
@@ -137,54 +127,48 @@ case $option in
         else
             echo -e "${RED}无法识别您的操作系统，无法解除禁用 IPv6。${RESET}"
         fi
-        echo -e "${GREEN}IPv6 已解除禁用。${RESET}"
         ;;
     6)
-        # 无人直播云 SRS 安装
-        echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
-        
-        # 提示用户输入直播端口号
-        read -p "请输入要使用的直播端口号 (默认为1935): " live_port
-        live_port=${live_port:-1935}  # 如果没有输入，则使用默认端口1935
+    # 无人直播云 SRS 安装
+    echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
 
-        # 提示用户输入管理端口号
-        read -p "请输入要使用的管理端口号 (默认为2022): " mgmt_port
-        mgmt_port=${mgmt_port:-2022}  # 如果没有输入，则使用默认端口2022
+    # 提示用户输入管理端口号
+    read -p "请输入要使用的管理端口号 (默认为2022): " mgmt_port
+    mgmt_port=${mgmt_port:-2022}  # 如果没有输入，则使用默认端口2022
 
-        # 检测端口是否被占用
-        check_port() {
-            local port=$1
-            if netstat -tuln | grep ":$port" > /dev/null; then
-                return 1
-            else
-                return 0
-            fi
-        }
-
-        # 检查直播端口是否被占用
-        check_port $live_port
-        if [ $? -eq 1 ]; then
-            echo -e "${RED}端口 $live_port 已被占用！${RESET}"
-            read -p "请输入其他端口号作为直播端口: " live_port
+    # 检测端口是否被占用
+    check_port() {
+        local port=$1
+        if netstat -tuln | grep ":$port" > /dev/null; then
+            return 1
+        else
+            return 0
         fi
+    }
 
-        # 检查管理端口是否被占用
-        check_port $mgmt_port
-        if [ $? -eq 1 ]; then
-            echo -e "${RED}端口 $mgmt_port 已被占用！${RESET}"
-            read -p "请输入其他端口号作为管理端口: " mgmt_port
-        fi
+    # 检查管理端口是否被占用
+    check_port $mgmt_port
+    if [ $? -eq 1 ]; then
+        echo -e "${RED}端口 $mgmt_port 已被占用！${RESET}"
+        read -p "请输入其他端口号作为管理端口: " mgmt_port
+    fi
 
-        # 安装 SRS
-        wget -O /usr/local/srs.tar.gz https://github.com/ossrs/srs/releases/download/v5.0.19/srs-5.0.19-linux-x64.tar.gz
-        tar -xzvf /usr/local/srs.tar.gz -C /usr/local
-        cd /usr/local/srs-5.0.19
-        ./configure --prefix=/usr/local/srs
-        make && make install
+    # 安装 Docker
+    sudo apt-get update
+    sudo apt-get install -y docker.io
 
-        # 启动 SRS 服务
-        /usr/local/srs/bin/srs -c /usr/local/srs/conf/srs.conf --port $live_port --mgmt-port $mgmt_port
-        ;;
+    # 启动 SRS 容器
+    docker run --restart always -d --name srs-stack -it -p $mgmt_port:2022 -p 1935:1935/tcp -p 1985:1985/tcp \
+      -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
+      -v $HOME/db:/data ossrs/srs-stack:5
+
+    # 获取服务器 IP 地址
+    server_ip=$(curl -s ifconfig.me)
+
+    # 输出访问地址
+    echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
+    echo -e "http://$server_ip:$mgmt_port/mgmt"
+    ;;
     7)
         # 宝塔纯净版安装
         echo -e "${GREEN}正在安装宝塔面板...${RESET}"
@@ -220,16 +204,14 @@ case $option in
         ;;
     9)
         # 重启服务器
-        echo -e "${GREEN}正在重启服务器...${RESET}"
+        echo -e "${GREEN}正在重启服务器 ...${RESET}"
         sudo reboot
         ;;
     10)
         # 服务器时区修改为中国时区
-        echo -e "${GREEN}正在修改服务器时区为中国时区...${RESET}"
-        mv /etc/localtime /etc/localtime.bak
-        ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-        service crond restart
-        echo -e "${GREEN}时区修改完成！当前时区已设置为中国时区。${RESET}"
+        echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
+        sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        sudo service cron restart
         ;;
     11)
         # 系统更新命令
