@@ -2,11 +2,12 @@
 
 # 定义颜色
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # 重置颜色
 
 # 提示快捷命令
-echo -e "${RED}提示：${YELLOW}您下次可以直接输入 's' 来快速启动此脚本。${NC}"
+echo -e "${RED}提示：您下次可以直接输入 's' 来快速启动此脚本。${NC}"
 
 # 快捷命令设置（仅首次设置，后续不会重复添加）
 if ! grep -q "alias s=" ~/.bashrc; then
@@ -21,7 +22,11 @@ while true; do
     echo -e "${YELLOW}1. 安装 v2ray 脚本${NC}"
     echo -e "${YELLOW}2. VPS 一键测试脚本${NC}"
     echo -e "${YELLOW}3. BBR 安装脚本${NC}"
-    read -p "输入选项: " option
+    echo -e "输入选项: "
+    echo -e "${GREEN}服务器推荐：https://my.frantech.ca/aff.php?aff=4337${NC}"
+    echo -e "${GREEN}VPS评测官方网站：https://www.1373737.xyz/${NC}"
+    echo -e "${GREEN}YouTube频道：https://www.youtube.com/@cyndiboy7881${NC}"
+    read -p "" option
 
     case $option in
         1)
