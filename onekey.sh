@@ -13,7 +13,7 @@ echo -e "\033[1;33m2. VPS 一键测试脚本\033[0m"
 echo -e "\033[1;33m3. BBR 安装脚本\033[0m"
 echo -e "\033[1;33m4. 一键永久禁用 IPv6\033[0m"
 echo -e "\033[1;33m5. 一键解除禁用 IPv6\033[0m"
-echo -e "\033[1;33m6. KVM 安装 Windows 2003\033[0m"
+echo -e "\033[1;33m6. 无人直播云 SRS 安装\033[0m"
 echo -e "\033[1;33m7. 宝塔纯净版安装\033[0m"
 echo -e "\033[1;33m8. 重启服务器\033[0m"
 echo -e "\033[1;33m请输入对应的数字：\033[0m"
@@ -93,70 +93,19 @@ case $option in
         fi
         ;;
     6)
-        # KVM 安装 Windows 2003 一键命令
-        echo "开始检测系统类型..."
-        if [ -f /etc/debian_version ]; then
-            echo "检测到系统为 Debian/Ubuntu"
-            echo "正在安装必要的依赖..."
-            apt-get install -y xz-utils openssl gawk file wget screen
-            if [ $? -eq 0 ]; then
-                echo "依赖安装成功！"
-            else
-                echo "依赖安装失败！"
-            fi
-            echo "正在启动屏幕会话..."
-            screen -S os
-            if [ $? -eq 0 ]; then
-                echo "屏幕会话启动成功！"
-            else
-                echo "屏幕会话启动失败！"
-            fi
-            echo "正在更新系统..."
-            apt update -y && apt dist-upgrade -y
-            if [ $? -eq 0 ]; then
-                echo "系统更新成功！"
-            else
-                echo "系统更新失败！"
-            fi
-            echo "开始下载并安装 Windows 2003 脚本..."
-            wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
-            if [ $? -eq 0 ]; then
-                echo "Windows 2003 安装脚本执行完成！"
-            else
-                echo "Windows 2003 安装脚本执行失败！"
-            fi
-        elif [ -f /etc/redhat-release ]; then
-            echo "检测到系统为 RedHat/CentOS"
-            echo "正在安装必要的依赖..."
-            yum install -y xz openssl gawk file glibc-common wget screen
-            if [ $? -eq 0 ]; then
-                echo "依赖安装成功！"
-            else
-                echo "依赖安装失败！"
-            fi
-            echo "正在启动屏幕会话..."
-            screen -S os
-            if [ $? -eq 0 ]; then
-                echo "屏幕会话启动成功！"
-            else
-                echo "屏幕会话启动失败！"
-            fi
-            echo "正在更新系统..."
-            yum update -y
-            if [ $? -eq 0 ]; then
-                echo "系统更新成功！"
-            else
-                echo "系统更新失败！"
-            fi
-            echo "开始下载并安装 Windows 2003 脚本..."
-            wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
-            if [ $? -eq 0 ]; then
-                echo "Windows 2003 安装脚本执行完成！"
-            else
-                echo "Windows 2003 安装脚本执行失败！"
-            fi
+        # 无人直播云 SRS 安装
+        echo "开始安装无人直播云 SRS..."
+        sudo apt-get update
+        sudo apt-get install docker.io
+        docker run --restart always -d --name srs-stack -it -p 2022:2022 -p 1935:1935/tcp -p 1985:1985/tcp \
+          -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
+          -v $HOME/db:/data ossrs/srs-stack:5
+        if [ $? -eq 0 ]; then
+            echo "SRS 安装成功！"
+            SERVER_IP=$(curl -s ifconfig.me)
+            echo "默认登录地址：http://$SERVER_IP:2022/mgmt"
         else
-            echo "不支持的系统类型。仅支持 Debian/Ubuntu 或 RedHat/CentOS 系统。"
+            echo "SRS 安装失败！"
         fi
         ;;
     7)
