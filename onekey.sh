@@ -1,14 +1,23 @@
 #!/bin/bash
 
+# 提示快捷命令
+echo "提示：您可以直接输入 's' 来快捷启动此脚本。"
+
+# 快捷命令设置（仅首次设置，后续不会重复添加）
+if ! grep -q "alias s=" ~/.bashrc; then
+    echo "正在为 s 设置快捷命令..."
+    echo "alias s='bash /root/onekey.sh'" >> ~/.bashrc
+    source ~/.bashrc
+fi
+
 # 显示菜单
-function show_menu() {
-    clear
+while true; do
     echo "请选择要执行的操作："
     echo "1. 安装 v2ray 脚本"
     echo "2. VPS 一键测试脚本"
     echo "3. BBR 安装脚本"
-    echo -n "输入选项: "
-    read -r option
+    read -p "输入选项: " option
+
     case $option in
         1)
             echo "正在安装 v2ray 脚本..."
@@ -26,19 +35,4 @@ function show_menu() {
             echo "无效选择，请输入有效的操作编号 (1, 2, 3)"
             ;;
     esac
-}
-
-# 检查并设置快捷命令 s
-if ! grep -q "alias s=" ~/.bashrc; then
-    echo "alias s='bash /root/onekey.sh'" >> ~/.bashrc
-    source ~/.bashrc
-    echo "快捷命令 S 已设置。您可以直接输入 's' 来启动脚本。"
-else
-    echo "快捷命令 S 已存在。输入 's' 启动脚本。"
-fi
-
-# 提示用户输入 S 启动脚本
-echo "提示：输入 's' 启动此脚本。"
-
-# 运行菜单
-show_menu
+done
