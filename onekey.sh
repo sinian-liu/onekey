@@ -155,16 +155,18 @@ case $option in
         # 宝塔纯净版安装
         echo -e "${GREEN}正在安装宝塔纯净版...${RESET}"
         
-        # 检查端口是否占用
-        check_port 8888
-        if [ $? -eq 1 ]; then
-            echo -e "${RED}端口 8888 已被占用！${RESET}"
-            read -p "请输入一个新的端口号用于宝塔 (默认使用 8888): " new_baota_port
-            new_baota_port=${new_baota_port:-8888}
+        # 检查系统类型
+        if [ -f /etc/redhat-release ]; then
+            # CentOS 系统
+            echo -e "${GREEN}正在为 CentOS 安装宝塔...${RESET}"
+            yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
+        elif [ -f /etc/lsb-release ]; then
+            # Ubuntu/Debian 系统
+            echo -e "${GREEN}正在为 Ubuntu/Debian 安装宝塔...${RESET}"
+            wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && bash install.sh
+        else
+            echo -e "${RED}无法识别您的操作系统，无法安装宝塔。${RESET}"
         fi
-
-        # 安装命令
-        curl -sSO https://raw.githubusercontent.com/bootyun/bt_install/master/bt_install.sh && bash bt_install.sh
         ;;
     8)
         # 配置 SSH 保持连接
