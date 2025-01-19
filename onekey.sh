@@ -1,105 +1,84 @@
 #!/bin/bash
 
 clear
-echo -e "\033[1;31m提示：您下次可以直接输入 's' 来快速启动此脚本。\033[0m"
-echo -e "\033[1;33m=============================================\033[0m"
-echo -e "\033[1;32m服务器推荐：\033[0m https://my.frantech.ca/aff.php?aff=4337"
-echo -e "\033[1;32mVPS评测官方网站：\033[0m https://www.1373737.xyz/"
-echo -e "\033[1;32mYouTube频道：\033[0m https://www.youtube.com/@cyndiboy7881"
-echo -e "\033[1;33m=============================================\033[0m"
-echo -e "\033[1;33m请输入选项并按回车键：\033[0m"
-echo -e "\033[1;33m1. 安装 v2ray 脚本\033[0m"
-echo -e "\033[1;33m2. VPS 一键测试脚本\033[0m"
-echo -e "\033[1;33m3. BBR 安装脚本\033[0m"
-echo -e "\033[1;33m4. 一键永久禁用 IPv6\033[0m"
-echo -e "\033[1;33m5. 一键解除禁用 IPv6\033[0m"
-echo -e "\033[1;33m6. 无人直播云 SRS 安装\033[0m"
-echo -e "\033[1;33m7. 宝塔纯净版安装\033[0m"
-echo -e "\033[1;33m8. 重启服务器\033[0m"
-echo -e "\033[1;33m请输入对应的数字：\033[0m"
-read -p "输入选项: " option
+echo -e "\033[31m提示：您下次可以直接输入 's' 来快速启动此脚本。\033[0m"
+echo "============================================="
+echo -e "\033[32m服务器推荐：https://my.frantech.ca/aff.php?aff=4337\033[0m"
+echo -e "\033[32mVPS评测官方网站：https://www.1373737.xyz/\033[0m"
+echo -e "\033[32mYouTube频道：https://www.youtube.com/@cyndiboy7881\033[0m"
+echo "============================================="
+echo -e "\033[33m请选择要执行的操作：\033[0m"
+echo -e "\033[33m1. 安装 v2ray 脚本\033[0m"
+echo -e "\033[33m2. VPS 一键测试脚本\033[0m"
+echo -e "\033[33m3. BBR 安装脚本\033[0m"
+echo -e "\033[33m4. 一键永久禁用 IPv6\033[0m"
+echo -e "\033[33m5. 一键解除禁用 IPv6\033[0m"
+echo -e "\033[33m6. 无人直播云 SRS 安装\033[0m"
+echo -e "\033[33m7. 宝塔纯净版安装\033[0m"
+echo -e "\033[33m8. 重启服务器\033[0m"
+echo -n "输入选项: "
+read opt
 
-case $option in
+case $opt in
     1)
         # 安装 v2ray 脚本
-        echo "开始安装 v2ray 脚本..."
-        wget -O /root/install-v2ray.sh https://raw.githubusercontent.com/v2ray/v2ray-core/master/release/install.sh && bash /root/install-v2ray.sh
-        if [ $? -eq 0 ]; then
-            echo "v2ray 脚本安装成功！"
-        else
-            echo "v2ray 脚本安装失败！"
-        fi
+        wget -N https://raw.githubusercontent.com/sinian-liu/onekey-v2ray/master/install.sh && bash install.sh
         ;;
     2)
         # VPS 一键测试脚本
-        echo "开始下载并执行 VPS 测试脚本..."
-        wget -O /root/vps-test.sh https://github.com/sinian-liu/VPStest/raw/main/system_info.sh && chmod +x /root/vps-test.sh && bash /root/vps-test.sh
-        if [ $? -eq 0 ]; then
-            echo "VPS 测试脚本执行完成！"
-        else
-            echo "VPS 测试脚本执行失败！"
-        fi
+        bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
         ;;
     3)
         # BBR 安装脚本
-        echo "开始安装 BBR 脚本..."
-        wget -O /root/bbr.sh https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh && chmod +x /root/bbr.sh && bash /root/bbr.sh
-        if [ $? -eq 0 ]; then
-            echo "BBR 安装成功！"
-        else
-            echo "BBR 安装失败！"
-        fi
+        wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
         ;;
     4)
-        # 永久禁用 IPv6
-        echo "开始禁用 IPv6..."
-        if [ -f /etc/debian_version ]; then
+        # 一键永久禁用 IPv6
+        if [[ -f /etc/debian_version ]]; then
             sudo bash -c 'echo -e "net.ipv6.conf.all.disable_ipv6 = 1\nnet.ipv6.conf.default.disable_ipv6 = 1\nnet.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf && sysctl -p'
-            if [ $? -eq 0 ]; then
-                echo "IPv6 禁用成功！"
-            else
-                echo "IPv6 禁用失败！"
-            fi
-        elif [ -f /etc/redhat-release ]; then
+        elif [[ -f /etc/redhat-release ]]; then
             sudo bash -c 'echo -e "net.ipv6.conf.all.disable_ipv6 = 1\nnet.ipv6.conf.default.disable_ipv6 = 1" >> /etc/sysctl.conf && sysctl -p'
-            if [ $? -eq 0 ]; then
-                echo "IPv6 禁用成功！"
-            else
-                echo "IPv6 禁用失败！"
-            fi
         else
-            echo "不支持的系统类型。仅支持 Debian/Ubuntu 或 RedHat/CentOS 系统。"
+            echo "不支持的操作系统"
         fi
         ;;
     5)
-        # 解除禁用 IPv6
-        echo "开始解除禁用 IPv6..."
-        if [ -f /etc/debian_version ]; then
+        # 一键解除禁用 IPv6
+        if [[ -f /etc/debian_version ]]; then
             sudo sed -i '/disable_ipv6/s/1/0/' /etc/sysctl.conf && sudo sysctl -p && sudo systemctl restart networking
-            if [ $? -eq 0 ]; then
-                echo "IPv6 解禁成功！"
-            else
-                echo "IPv6 解禁失败！"
-            fi
-        elif [ -f /etc/redhat-release ]; then
+        elif [[ -f /etc/redhat-release ]]; then
             sudo sed -i '/disable_ipv6/s/1/0/' /etc/sysctl.conf && sudo sysctl -p && sudo systemctl restart network
-            if [ $? -eq 0 ]; then
-                echo "IPv6 解禁成功！"
-            else
-                echo "IPv6 解禁失败！"
-            fi
         else
-            echo "不支持的系统类型。仅支持 Debian/Ubuntu 或 RedHat/CentOS 系统。"
+            echo "不支持的操作系统"
         fi
         ;;
     6)
         # 无人直播云 SRS 安装
         echo "开始安装无人直播云 SRS..."
+
+        # 提示用户输入直播端口号
+        read -p "请输入要使用的直播端口号 (默认为1935): " live_port
+        live_port=${live_port:-1935}  # 如果没有输入，则使用默认端口1935
+
+        # 提示用户输入流媒体端口号
+        read -p "请输入要使用的流媒体端口号 (默认为8080): " stream_port
+        stream_port=${stream_port:-8080}  # 如果没有输入，则使用默认端口8080
+
+        # 更新软件源和安装 Docker
         sudo apt-get update
-        sudo apt-get install docker.io
-        docker run --restart always -d --name srs-stack -it -p 2022:2022 -p 1935:1935/tcp -p 1985:1985/tcp \
-          -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
+        sudo apt-get install -y docker.io
+
+        # 开放用户输入的端口
+        echo "正在开放端口 $live_port 和 $stream_port..."
+        sudo ufw allow $live_port/tcp
+        sudo ufw allow $stream_port/tcp
+        sudo ufw reload
+
+        # 运行 SRS 容器
+        docker run --restart always -d --name srs-stack -it -p $live_port:$live_port/tcp -p 1985:1985/tcp \
+          -p $stream_port:$stream_port/tcp -p 8000:8000/udp -p 10080:10080/udp \
           -v $HOME/db:/data ossrs/srs-stack:5
+
         if [ $? -eq 0 ]; then
             echo "SRS 安装成功！"
             SERVER_IP=$(curl -s ifconfig.me)
@@ -110,20 +89,21 @@ case $option in
         ;;
     7)
         # 宝塔纯净版安装
-        if [ -f /etc/redhat-release ]; then
-            yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
-        elif [ -f /etc/debian_version ]; then
+        echo "正在安装宝塔面板..."
+        if [[ -f /etc/debian_version || -f /etc/ubuntu-release ]]; then
             wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && bash install.sh
+        elif [[ -f /etc/redhat-release ]]; then
+            yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
         else
-            echo "不支持的系统类型。仅支持 Debian/Ubuntu 或 RedHat/CentOS 系统。"
+            echo "不支持的操作系统"
         fi
         ;;
     8)
         # 重启服务器
         echo "正在重启服务器..."
-        reboot
+        sudo reboot
         ;;
     *)
-        echo "无效的选项！"
+        echo "无效选择，请选择有效的操作编号 (1-8)"
         ;;
 esac
