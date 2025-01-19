@@ -162,8 +162,8 @@ case $option in
       -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
       -v $HOME/db:/data ossrs/srs-stack:5
 
-    # 获取服务器 IP 地址
-    server_ip=$(curl -s ifconfig.me)
+    # 获取服务器 IPv4 地址
+    server_ip=$(curl -s4 ifconfig.me)
 
     # 输出访问地址
     echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
