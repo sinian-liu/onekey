@@ -60,29 +60,29 @@ case $opt in
         read -p "请输入要使用的直播端口号 (默认为1935): " live_port
         live_port=${live_port:-1935}  # 如果没有输入，则使用默认端口1935
 
-        # 提示用户输入流媒体端口号
-        read -p "请输入要使用的流媒体端口号 (默认为8080): " stream_port
-        stream_port=${stream_port:-8080}  # 如果没有输入，则使用默认端口8080
+        # 提示用户输入管理端口号
+        read -p "请输入要使用的管理端口号 (默认为2022): " mgmt_port
+        mgmt_port=${mgmt_port:-2022}  # 如果没有输入，则使用默认端口2022
 
         # 更新软件源和安装 Docker
         sudo apt-get update
         sudo apt-get install -y docker.io
 
         # 开放用户输入的端口
-        echo "正在开放端口 $live_port 和 $stream_port..."
+        echo "正在开放端口 $live_port 和 $mgmt_port..."
         sudo ufw allow $live_port/tcp
-        sudo ufw allow $stream_port/tcp
+        sudo ufw allow $mgmt_port/tcp
         sudo ufw reload
 
         # 运行 SRS 容器
         docker run --restart always -d --name srs-stack -it -p $live_port:$live_port/tcp -p 1985:1985/tcp \
-          -p $stream_port:$stream_port/tcp -p 8000:8000/udp -p 10080:10080/udp \
+          -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
           -v $HOME/db:/data ossrs/srs-stack:5
 
         if [ $? -eq 0 ]; then
             echo "SRS 安装成功！"
             SERVER_IP=$(curl -s ifconfig.me)
-            echo "默认登录地址：http://$SERVER_IP:2022/mgmt"
+            echo "默认登录地址：http://$SERVER_IP:$mgmt_port/mgmt"
         else
             echo "SRS 安装失败！"
         fi
