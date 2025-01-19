@@ -51,7 +51,7 @@ case $option in
         fi
         ;;
     6)
-        # KVM 安装 Windows 2003 脚本
+        # KVM 安装 Windows 2003 一键命令
         if [ -f /etc/debian_version ]; then
             # Debian/Ubuntu 系统
             echo "检测到系统为 Debian/Ubuntu"
