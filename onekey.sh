@@ -32,8 +32,13 @@ function show_menu() {
 if ! grep -q "alias s=" ~/.bashrc; then
     echo "alias s='bash /root/onekey.sh'" >> ~/.bashrc
     source ~/.bashrc
-    echo "快捷命令 s 已设置。您可以直接输入 's' 来启动脚本。"
+    echo "快捷命令 S 已设置。您可以直接输入 's' 来启动脚本。"
+else
+    echo "快捷命令 S 已存在。输入 's' 启动脚本。"
 fi
+
+# 提示用户输入 S 启动脚本
+echo "提示：输入 's' 启动此脚本。"
 
 # 运行菜单
 show_menu
