@@ -42,6 +42,14 @@ update_system() {
     fi
 }
 
+# 快捷启动命令
+create_shortcut() {
+    echo -e "${GREEN}正在创建快捷启动命令...${RESET}"
+    echo "alias sinian='wget -qO- https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh | bash'" >> ~/.bashrc
+    source ~/.bashrc
+    echo -e "${GREEN}快捷启动命令 'sinian' 创建成功！${RESET}"
+}
+
 # 提示用户输入选项
 echo -e "${GREEN}=============================================${RESET}"
 echo -e "${GREEN}服务器推荐：https://my.frantech.ca/aff.php?aff=4337${RESET}"
