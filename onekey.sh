@@ -71,8 +71,9 @@ echo -e "${YELLOW}6. 无人直播云 SRS 安装${RESET}"
 echo -e "${YELLOW}7. 宝塔纯净版安装${RESET}"
 echo -e "${YELLOW}8. 长时间保持 SSH 会话连接不断开${RESET}"
 echo -e "${YELLOW}9. 重启服务器${RESET}"
+echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
-read -p "请输入选项 [1-9]:" option
+read -p "请输入选项 [1-10]:" option
 
 case $option in
     1)
@@ -218,6 +219,14 @@ case $option in
         # 重启服务器
         echo -e "${GREEN}正在重启服务器...${RESET}"
         sudo reboot
+        ;;
+    10)
+        # 服务器时区修改为中国时区
+        echo -e "${GREEN}正在修改服务器时区为中国时区...${RESET}"
+        mv /etc/localtime /etc/localtime.bak
+        ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        service crond restart
+        echo -e "${GREEN}时区修改完成！当前时区已设置为中国时区。${RESET}"
         ;;
     *)
         echo -e "${RED}无效的选项，请重新选择！${RESET}"
