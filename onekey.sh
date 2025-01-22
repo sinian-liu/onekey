@@ -253,7 +253,7 @@ case $option in
         ;;
 
     12)
-       # 检测操作系统类型
+       # KVM安装系统,检测操作系统类型
 check_system() {
     if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
         SYSTEM="debian"
