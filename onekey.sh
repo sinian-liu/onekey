@@ -307,31 +307,32 @@ if [[ $option -eq 12 ]]; then
         echo -e "${RED}脚本下载失败，请检查网络或镜像源！${RESET}"
         exit 1
     fi
-    13)
+        13)
         # 使用 SCP 命令传输文件
-        read -p "请输入要传输的本地文件路径：" local_file
-        read -p "请输入目标服务器的 IP 地址：" remote_ip
-        read -p "请输入目标服务器的文件夹路径：" remote_dir
-        echo -e "${GREEN}正在通过 SCP 传输文件...${RESET}"
-        scp "$local_file" root@"$remote_ip":"$remote_dir"
+        echo -e "${GREEN}请输入要传输的文件路径、目标服务器地址和目标路径...${RESET}"
+        read -p "源文件路径: " source_file
+        read -p "目标服务器地址 (例如 192.168.1.100): " server_ip
+        read -p "目标路径 (例如 /root/data/vlive/): " target_path
+        echo -e "${YELLOW}正在使用 SCP 传输文件...${RESET}"
+        scp "$source_file" root@"$server_ip":"$target_path"
         ;;
     14)
         # 使用 FTP 命令传输文件
-        read -p "请输入目标 FTP 服务器的 IP 地址：" ftp_ip
-        read -p "请输入目标 FTP 服务器的用户名：" ftp_user
-        read -p "请输入目标 FTP 服务器的密码：" ftp_pass
-        read -p "请输入要上传的本地文件路径：" local_file
-        read -p "请输入目标 FTP 服务器的文件夹路径：" remote_dir
-        echo -e "${GREEN}正在通过 FTP 传输文件...${RESET}"
-        ftp -inv "$ftp_ip" <<EOF
-user $ftp_user $ftp_pass
-cd $remote_dir
-put $local_file
-bye
+        echo -e "${GREEN}请输入 FTP 服务器信息和文件路径...${RESET}"
+        read -p "FTP 服务器地址: " ftp_server
+        read -p "FTP 用户名: " ftp_user
+        read -p "FTP 密码: " ftp_pass
+        read -p "源文件路径: " source_file
+        read -p "目标路径 (例如 /data/): " target_path
+        echo -e "${YELLOW}正在使用 FTP 传输文件...${RESET}"
+        ftp -n "$ftp_server" <<EOF
+user "$ftp_user" "$ftp_pass"
+binary
+put "$source_file" "$target_path"
+quit
 EOF
         ;;
     *)
         echo -e "${RED}无效的选项，请重新输入！${RESET}"
         ;;
-
 esac
