@@ -19,6 +19,32 @@ check_system() {
     fi
 }
 
+# 安装 wget 函数
+install_wget() {
+    check_system
+    if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+        echo -e "${YELLOW}检测到 wget 缺失，正在安装...${RESET}"
+        sudo apt update && sudo apt install -y wget
+    elif [ "$SYSTEM" == "centos" ]; then
+        echo -e "${YELLOW}检测到 wget 缺失，正在安装...${RESET}"
+        sudo yum install -y wget
+    elif [ "$SYSTEM" == "fedora" ]; then
+        echo -e "${YELLOW}检测到 wget 缺失，正在安装...${RESET}"
+        sudo dnf install -y wget
+    else
+        echo -e "${RED}无法识别系统，无法安装 wget。${RESET}"
+    fi
+}
+
+# 检查并安装 wget
+if ! command -v wget &> /dev/null; then
+    install_wget
+    if ! command -v wget &> /dev/null; then
+        echo -e "${RED}安装 wget 失败，请手动检查问题！${RESET}"
+        exit 1
+    fi
+fi
+
 # 系统更新函数
 update_system() {
     check_system
