@@ -219,32 +219,49 @@ case $option in
         sudo apt-get update -y && sudo apt-get upgrade -y
         ;;
     12)
-        # KVM 安装 Windows 和 Linux 系统
-        echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
-        check_system
-        if [[ $SYSTEM == "debian" ]]; then
-            echo -e "${YELLOW}正在安装必要依赖...${RESET}"
-            apt-get install -y xz-utils openssl gawk file wget screen
-            screen -S os
-        elif [[ $SYSTEM == "centos" ]]; then
-            echo -e "${YELLOW}正在安装必要依赖...${RESET}"
-            yum install -y xz openssl gawk file glibc-common wget screen
-            screen -S os
-        else
-            echo -e "${RED}不支持的操作系统！${RESET}"
+# 系统检测函数
+check_system() {
+    if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
+        SYSTEM="debian"
+    elif grep -qi "centos" /etc/os-release || grep -qi "red hat" /etc/os-release; then
+        SYSTEM="centos"
+    else
+        SYSTEM="unknown"
+    fi
+}
+
+# 检测系统并安装 KVM
+if [[ $option -eq 12 ]]; then
+    echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
+    check_system
+    if [[ $SYSTEM == "debian" ]]; then
+        echo -e "${YELLOW}正在安装必要依赖 (适用于 Debian/Ubuntu)...${RESET}"
+        apt-get update -y
+        apt-get install -y xz-utils openssl gawk file wget screen || {
+            echo -e "${RED}依赖安装失败，请检查您的网络或系统源！${RESET}"
             exit 1
-        fi
+        }
+        screen -S os
+    elif [[ $SYSTEM == "centos" ]]; then
+        echo -e "${YELLOW}正在安装必要依赖 (适用于 CentOS/Red Hat)...${RESET}"
+        yum install -y xz openssl gawk file glibc-common wget screen || {
+            echo -e "${RED}依赖安装失败，请检查您的网络或系统源！${RESET}"
+            exit 1
+        }
+        screen -S os
+    else
+        echo -e "${RED}不支持的操作系统！请使用 Debian、Ubuntu 或 CentOS 系统。${RESET}"
+        exit 1
+    fi
 
-        echo -e "${YELLOW}安装主程序...${RESET}"
-        wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
+    echo -e "${YELLOW}安装主程序...${RESET}"
+    wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
 
-        echo -e "${YELLOW}如果遇到问题，例如CN主机下载报错，可以运行以下命令替代:${RESET}"
-        echo -e "${YELLOW}wget --no-check-certificate -O NewReinstall.sh https://cdn.jsdelivr.net/gh/fcurrk/reinstall@master/NewReinstall.sh && chmod a+x NewReinstall.sh && bash NewReinstall.sh${RESET}"
-        
-        echo -e "${RED}注意：如果报错 'Error! grub.cfg'，请运行以下命令解决:${RESET}"
-        echo -e "${RED}mkdir /boot/grub2 && grub-mkconfig -o /boot/grub2/grub.cfg${RESET}"
-        ;;
-    *)
-        echo -e "${RED}无效的选项，请重新选择！${RESET}"
-        ;;
+    echo -e "${YELLOW}如果遇到问题，例如 CN 主机下载报错，可以运行以下命令替代:${RESET}"
+    echo -e "${YELLOW}wget --no-check-certificate -O NewReinstall.sh https://cdn.jsdelivr.net/gh/fcurrk/reinstall@master/NewReinstall.sh && chmod a+x NewReinstall.sh && bash NewReinstall.sh${RESET}"
+    
+    echo -e "${RED}注意：如果报错 'Error! grub.cfg'，请运行以下命令解决:${RESET}"
+    echo -e "${RED}mkdir /boot/grub2 && grub-mkconfig -o /boot/grub2/grub.cfg${RESET}"
+    exit 0
+fi
 esac
