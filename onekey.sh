@@ -219,7 +219,13 @@ case $option in
         sudo apt-get update -y && sudo apt-get upgrade -y
         ;;
     12)
-# 系统检测函数
+# 定义颜色
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+RESET='\033[0m'
+
+# 检测操作系统类型
 check_system() {
     if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
         SYSTEM="debian"
@@ -230,38 +236,30 @@ check_system() {
     fi
 }
 
-# 检测系统并安装 KVM
 if [[ $option -eq 12 ]]; then
     echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
     check_system
+
     if [[ $SYSTEM == "debian" ]]; then
-        echo -e "${YELLOW}正在安装必要依赖 (适用于 Debian/Ubuntu)...${RESET}"
-        apt-get update -y
-        apt-get install -y xz-utils openssl gawk file wget screen || {
-            echo -e "${RED}依赖安装失败，请检查您的网络或系统源！${RESET}"
-            exit 1
-        }
-        screen -S os
+        echo -e "${YELLOW}检测到系统为 Debian/Ubuntu，开始安装必要依赖...${RESET}"
+        apt-get install -y xz-utils openssl gawk file wget screen && screen -S os
+
+        echo -e "${YELLOW}正在更新系统软件包...${RESET}"
+        apt update -y && apt dist-upgrade -y
+
     elif [[ $SYSTEM == "centos" ]]; then
-        echo -e "${YELLOW}正在安装必要依赖 (适用于 CentOS/Red Hat)...${RESET}"
-        yum install -y xz openssl gawk file glibc-common wget screen || {
-            echo -e "${RED}依赖安装失败，请检查您的网络或系统源！${RESET}"
-            exit 1
-        }
-        screen -S os
+        echo -e "${YELLOW}检测到系统为 RedHat/CentOS，开始安装必要依赖...${RESET}"
+        yum install -y xz openssl gawk file glibc-common wget screen && screen -S os
+
     else
-        echo -e "${RED}不支持的操作系统！请使用 Debian、Ubuntu 或 CentOS 系统。${RESET}"
+        echo -e "${RED}不支持的操作系统！${RESET}"
         exit 1
     fi
 
-    echo -e "${YELLOW}安装主程序...${RESET}"
+    echo -e "${YELLOW}开始下载并运行安装脚本...${RESET}"
     wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
 
-    echo -e "${YELLOW}如果遇到问题，例如 CN 主机下载报错，可以运行以下命令替代:${RESET}"
-    echo -e "${YELLOW}wget --no-check-certificate -O NewReinstall.sh https://cdn.jsdelivr.net/gh/fcurrk/reinstall@master/NewReinstall.sh && chmod a+x NewReinstall.sh && bash NewReinstall.sh${RESET}"
-    
-    echo -e "${RED}注意：如果报错 'Error! grub.cfg'，请运行以下命令解决:${RESET}"
-    echo -e "${RED}mkdir /boot/grub2 && grub-mkconfig -o /boot/grub2/grub.cfg${RESET}"
+    echo -e "${GREEN}安装完成！${RESET}"
     exit 0
 fi
 esac
