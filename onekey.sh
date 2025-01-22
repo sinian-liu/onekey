@@ -64,6 +64,7 @@ echo -e "${YELLOW}8. 长时间保持SSH会话连接不断开${RESET}"
 echo -e "${YELLOW}9. 重启服务器${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 系统更新命令${RESET}"
+echo -e "${YELLOW}12. KVM 安装 Windows 和 Linux 系统${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项 [1-11]:" option
@@ -215,7 +216,33 @@ case $option in
         ;;
     11)
         # 系统更新命令
-        update_system
+        sudo apt-get update -y && sudo apt-get upgrade -y
+        ;;
+    12)
+        # KVM 安装 Windows 和 Linux 系统
+        echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
+        check_system
+        if [[ $SYSTEM == "debian" ]]; then
+            echo -e "${YELLOW}正在安装必要依赖...${RESET}"
+            apt-get install -y xz-utils openssl gawk file wget screen
+            screen -S os
+        elif [[ $SYSTEM == "centos" ]]; then
+            echo -e "${YELLOW}正在安装必要依赖...${RESET}"
+            yum install -y xz openssl gawk file glibc-common wget screen
+            screen -S os
+        else
+            echo -e "${RED}不支持的操作系统！${RESET}"
+            exit 1
+        fi
+
+        echo -e "${YELLOW}安装主程序...${RESET}"
+        wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
+
+        echo -e "${YELLOW}如果遇到问题，例如CN主机下载报错，可以运行以下命令替代:${RESET}"
+        echo -e "${YELLOW}wget --no-check-certificate -O NewReinstall.sh https://cdn.jsdelivr.net/gh/fcurrk/reinstall@master/NewReinstall.sh && chmod a+x NewReinstall.sh && bash NewReinstall.sh${RESET}"
+        
+        echo -e "${RED}注意：如果报错 'Error! grub.cfg'，请运行以下命令解决:${RESET}"
+        echo -e "${RED}mkdir /boot/grub2 && grub-mkconfig -o /boot/grub2/grub.cfg${RESET}"
         ;;
     *)
         echo -e "${RED}无效的选项，请重新选择！${RESET}"
