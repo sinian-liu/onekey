@@ -91,6 +91,8 @@ echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装 Windows或Linux系统${RESET}"
+echo -e "${YELLOW}13. 使用 SCP 命令传输文件${RESET}"
+echo -e "${YELLOW}14. 使用 FTP 命令传输文件${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项 [1-12]:" option
@@ -306,5 +308,46 @@ if [[ $option -eq 12 ]]; then
         exit 1
     fi
 fi
+    13)
+        # 使用 SCP 命令传输文件
+        echo -e "${GREEN}正在使用 SCP 命令传输文件...${RESET}"
+        read -p "请输入源文件路径：" source_file
+        read -p "请输入目标服务器 IP 地址：" target_ip
+        read -p "请输入目标路径：" target_path
+        read -p "请输入目标服务器的用户名：" target_user
 
+        scp "$source_file" "$target_user@$target_ip:$target_path"
+
+        if [[ $? -eq 0 ]]; then
+            echo -e "${GREEN}文件传输成功！${RESET}"
+        else
+            echo -e "${RED}文件传输失败，请检查路径或网络连接！${RESET}"
+        fi
+        ;;
+    14)
+        # 使用 FTP 命令传输文件
+        echo -e "${GREEN}正在使用 FTP 命令传输文件...${RESET}"
+        read -p "请输入源文件路径：" source_file
+        read -p "请输入目标 FTP 服务器地址：" ftp_server
+        read -p "请输入目标 FTP 服务器用户名：" ftp_user
+        read -p "请输入目标 FTP 服务器密码：" ftp_password
+        read -p "请输入目标路径：" target_path
+
+        ftp -n "$ftp_server" <<END_SCRIPT
+        quote USER $ftp_user
+        quote PASS $ftp_password
+        binary
+        put "$source_file" "$target_path"
+        quit
+END_SCRIPT
+
+        if [[ $? -eq 0 ]]; then
+            echo -e "${GREEN}文件上传成功！${RESET}"
+        else
+            echo -e "${RED}文件上传失败，请检查路径或网络连接！${RESET}"
+        fi
+        ;;
+    *)
+        echo "Invalid option"
+        ;;
 esac
