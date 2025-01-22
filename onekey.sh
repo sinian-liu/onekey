@@ -219,12 +219,6 @@ case $option in
         sudo apt-get update -y && sudo apt-get upgrade -y
         ;;
     12)
-# 定义颜色
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-RESET='\033[0m'
-
 # 检测操作系统类型
 check_system() {
     if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
@@ -242,14 +236,26 @@ if [[ $option -eq 12 ]]; then
 
     if [[ $SYSTEM == "debian" ]]; then
         echo -e "${YELLOW}检测到系统为 Debian/Ubuntu，开始安装必要依赖...${RESET}"
-        apt-get install -y xz-utils openssl gawk file wget screen && screen -S os
+        apt-get install -y xz-utils openssl gawk file wget screen
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}依赖安装失败，请检查网络或更换镜像源后重试！${RESET}"
+            exit 1
+        fi
 
         echo -e "${YELLOW}正在更新系统软件包...${RESET}"
         apt update -y && apt dist-upgrade -y
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}系统更新失败，请检查网络或更换镜像源后重试！${RESET}"
+            exit 1
+        fi
 
     elif [[ $SYSTEM == "centos" ]]; then
         echo -e "${YELLOW}检测到系统为 RedHat/CentOS，开始安装必要依赖...${RESET}"
-        yum install -y xz openssl gawk file glibc-common wget screen && screen -S os
+        yum install -y xz openssl gawk file glibc-common wget screen
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}依赖安装失败，请检查网络或更换镜像源后重试！${RESET}"
+            exit 1
+        fi
 
     else
         echo -e "${RED}不支持的操作系统！${RESET}"
@@ -257,7 +263,14 @@ if [[ $option -eq 12 ]]; then
     fi
 
     echo -e "${YELLOW}开始下载并运行安装脚本...${RESET}"
-    wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags && chmod a+x NewReinstall.sh && bash NewReinstall.sh
+    wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}脚本下载失败，请检查网络或更换镜像源后重试！${RESET}"
+        exit 1
+    fi
+
+    chmod a+x NewReinstall.sh
+    bash NewReinstall.sh
 
     echo -e "${GREEN}安装完成！${RESET}"
     exit 0
