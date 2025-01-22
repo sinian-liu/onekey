@@ -91,8 +91,8 @@ echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装 Windows或Linux系统${RESET}"
-echo -e "${YELLOW}13. 使用SCP传输文件${RESET}"
-echo -e "${YELLOW}14. 使用FTP传输文件${RESET}"
+echo -e "${YELLOW}13. 使用 SCP 命令传输文件${RESET}"
+echo -e "${YELLOW}14. 使用 FTP 命令传输文件${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项 [1-12]:" option
@@ -307,7 +307,8 @@ if [[ $option -eq 12 ]]; then
         echo -e "${RED}脚本下载失败，请检查网络或镜像源！${RESET}"
         exit 1
     fi
-        13)
+fi
+    13)
         # 使用 SCP 命令传输文件
         echo -e "${GREEN}请输入要传输的文件路径、目标服务器地址和目标路径...${RESET}"
         read -p "源文件路径: " source_file
@@ -325,14 +326,13 @@ if [[ $option -eq 12 ]]; then
         read -p "源文件路径: " source_file
         read -p "目标路径 (例如 /data/): " target_path
         echo -e "${YELLOW}正在使用 FTP 传输文件...${RESET}"
-        ftp -n "$ftp_server" <<EOF
-user "$ftp_user" "$ftp_pass"
-binary
-put "$source_file" "$target_path"
-quit
-EOF
+        ftp -inv "$ftp_server" <<EOF
+        user "$ftp_user" "$ftp_pass"
+        put "$source_file" "$target_path"
+        bye
+        EOF
         ;;
     *)
-        echo -e "${RED}无效的选项，请重新输入！${RESET}"
+        # 处理其他选项
         ;;
 esac
