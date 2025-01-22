@@ -93,7 +93,7 @@ echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装 Windows或Linux系统${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
-read -p "请输入选项 [1-11]:" option
+read -p "请输入选项 [1-12]:" option
 
 case $option in
     1)
