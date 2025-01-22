@@ -307,7 +307,7 @@ if [[ $option -eq 12 ]]; then
         echo -e "${RED}脚本下载失败，请检查网络或镜像源！${RESET}"
         exit 1
     fi
-        13)
+    13)
         # 使用 SCP 命令传输文件
         read -p "请输入要传输的本地文件路径：" local_file
         read -p "请输入目标服务器的 IP 地址：" remote_ip
@@ -333,6 +333,5 @@ EOF
     *)
         echo -e "${RED}无效的选项，请重新输入！${RESET}"
         ;;
-fi
 
 esac
