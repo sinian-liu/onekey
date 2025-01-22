@@ -79,17 +79,17 @@ echo -e "${GREEN}VPS评测官方网站：https://www.1373737.xyz/${RESET}"
 echo -e "${GREEN}YouTube频道：https://www.youtube.com/@cyndiboy7881${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 echo "请选择要执行的操作："
-echo -e "${YELLOW}1. 安装v2ray脚本${RESET}"
-echo -e "${YELLOW}2. VPS一键测试脚本${RESET}"
-echo -e "${YELLOW}3. BBR安装脚本${RESET}"
-echo -e "${YELLOW}4. 一键永久禁用IPv6${RESET}"
-echo -e "${YELLOW}5. 一键解除禁用IPv6${RESET}"
-echo -e "${YELLOW}6. 无人直播云SRS安装${RESET}"
-echo -e "${YELLOW}7. 宝塔纯净版安装${RESET}"
-echo -e "${YELLOW}8. 长时间保持SSH会话连接不断开${RESET}"
-echo -e "${YELLOW}9. 重启服务器${RESET}"
+echo -e "${YELLOW}1. VPS一键测试${RESET}"
+echo -e "${YELLOW}2. BBR安装${RESET}"
+echo -e "${YELLOW}3. 安装v2ray${RESET}"
+echo -e "${YELLOW}4. 安装无人直播云SRS${RESET}"
+echo -e "${YELLOW}5. 安装宝塔纯净版${RESET}"
+echo -e "${YELLOW}6. 系统更新${RESET}"
+echo -e "${YELLOW}7. 重启服务器${RESET}"
+echo -e "${YELLOW}8. 一键永久禁用IPv6${RESET}"
+echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
-echo -e "${YELLOW}11. 系统更新命令${RESET}"
+echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装 Windows或Linux系统${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
@@ -97,66 +97,22 @@ read -p "请输入选项 [1-11]:" option
 
 case $option in
     1)
-        # 安装 v2ray 脚本
-        echo -e "${GREEN}正在安装 v2ray ...${RESET}"
-        wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-        ;;
-    2)
-        # VPS 一键测试脚本
+      # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
         bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
         ;;
-    3)
-        # BBR 安装脚本
+    2)
+      # BBR 安装脚本
         echo -e "${GREEN}正在安装 BBR ...${RESET}"
         wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
         ;;
+    3)
+      # 安装 v2ray 脚本
+        echo -e "${GREEN}正在安装 v2ray ...${RESET}"
+        wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
+        ;;
     4)
-        # 永久禁用 IPv6
-        echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
-        # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
-        if [ -f /etc/lsb-release ]; then
-            # Ubuntu 或 Debian 系统
-            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-            echo "net.ipv6.conf.all.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.default.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-        elif [ -f /etc/redhat-release ]; then
-            # CentOS 或 RHEL 系统
-            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-            echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-        else
-            echo -e "${RED}无法识别您的操作系统，无法禁用 IPv6。${RESET}"
-        fi
-        ;;
-    5)
-        # 解除禁用 IPv6
-        echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
-        # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
-        if [ -f /etc/lsb-release ]; then
-            # Ubuntu 或 Debian 系统
-            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
-            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
-            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
-            sudo sysctl -p
-        elif [ -f /etc/redhat-release ]; then
-            # CentOS 或 RHEL 系统
-            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
-            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
-            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
-            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
-            sudo sysctl -p
-        else
-            echo -e "${RED}无法识别您的操作系统，无法解除禁用 IPv6。${RESET}"
-        fi
-        ;;
-    6)
-    # 无人直播云 SRS 安装
+      # 无人直播云 SRS 安装
     echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
 
     # 提示用户输入管理端口号
@@ -196,8 +152,9 @@ case $option in
     echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
     echo -e "${YELLOW}http://$server_ip:$mgmt_port/mgmt${RESET}"
     ;;
-    7)
-        # 宝塔纯净版安装
+
+    5)
+      # 宝塔纯净版安装
         echo -e "${GREEN}正在安装宝塔面板...${RESET}"
         if [ -f /etc/lsb-release ]; then
             # Ubuntu 或 Debian 系统
@@ -209,8 +166,73 @@ case $option in
             echo -e "${RED}无法识别您的操作系统，无法安装宝塔面板。${RESET}"
         fi
         ;;
+        
+
+    6)
+      # 系统更新命令
+        sudo apt-get update -y && sudo apt-get upgrade -y
+        ;;
+    
+    7)
+      # 重启服务器
+        echo -e "${GREEN}正在重启服务器 ...${RESET}"
+        sudo reboot
+        ;;
+
     8)
-        # 长时间保持 SSH 会话连接不断开
+      # 永久禁用 IPv6
+        echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
+        # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
+        if [ -f /etc/lsb-release ]; then
+            # Ubuntu 或 Debian 系统
+            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+            echo "net.ipv6.conf.all.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
+            echo "net.ipv6.conf.default.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
+            sudo sysctl -p
+        elif [ -f /etc/redhat-release ]; then
+            # CentOS 或 RHEL 系统
+            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+            echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+            echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+            sudo sysctl -p
+        else
+            echo -e "${RED}无法识别您的操作系统，无法禁用 IPv6。${RESET}"
+        fi
+        ;;
+
+    9)
+      # 解除禁用 IPv6
+        echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
+        # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
+        if [ -f /etc/lsb-release ]; then
+            # Ubuntu 或 Debian 系统
+            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
+            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
+            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
+            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
+            sudo sysctl -p
+        elif [ -f /etc/redhat-release ]; then
+            # CentOS 或 RHEL 系统
+            sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0
+            sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0
+            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
+            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
+            sudo sysctl -p
+        else
+            echo -e "${RED}无法识别您的操作系统，无法解除禁用 IPv6。${RESET}"
+        fi
+        ;;
+
+    10)
+        # 服务器时区修改为中国时区
+        echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
+        sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        sudo service cron restart
+        ;;
+    11)
+       # 长时间保持 SSH 会话连接不断开
         echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
         read -p "请输入每次心跳请求的间隔时间（单位：分钟，默认为5分钟）： " interval
         interval=${interval:-5}  # 默认值为5分钟
@@ -229,23 +251,9 @@ case $option in
 
         echo -e "${GREEN}配置完成！心跳请求间隔为 $interval 分钟，最大无响应次数为 $max_count。${RESET}"
         ;;
-    9)
-        # 重启服务器
-        echo -e "${GREEN}正在重启服务器 ...${RESET}"
-        sudo reboot
-        ;;
-    10)
-        # 服务器时区修改为中国时区
-        echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
-        sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-        sudo service cron restart
-        ;;
-    11)
-        # 系统更新命令
-        sudo apt-get update -y && sudo apt-get upgrade -y
-        ;;
+
     12)
-# 检测操作系统类型
+       # 检测操作系统类型
 check_system() {
     if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
         SYSTEM="debian"
@@ -298,4 +306,5 @@ if [[ $option -eq 12 ]]; then
         exit 1
     fi
 fi
+
 esac
