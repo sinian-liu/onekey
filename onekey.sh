@@ -343,5 +343,44 @@ else
     echo -e "${RED}无效的选项！${RESET}"
     fi
 fi
+if [[ $option -eq 13 ]]; then
+    # 使用 SCP 命令传输文件
+    echo -e "${GREEN}请输入要传输的文件路径、目标服务器地址和目标路径...${RESET}"
+    read -p "源文件路径: " source_file
+    read -p "目标服务器地址 (例如 192.168.1.100): " server_ip
+    read -p "目标路径 (例如 /root/data/vlive/): " target_path
+    echo -e "${YELLOW}正在使用 SCP 传输文件...${RESET}"
+    scp "$source_file" root@"$server_ip":"$target_path"
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}文件传输成功！${RESET}"
+    else
+        echo -e "${RED}文件传输失败！请检查路径或服务器设置！${RESET}"
+    fi
+elif [[ $option -eq 14 ]]; then
+    # 使用 FTP 命令传输文件
+    echo -e "${GREEN}请输入 FTP 服务器信息和文件路径...${RESET}"
+    read -p "FTP 服务器地址: " ftp_server
+    read -p "FTP 用户名: " ftp_user
+    read -p "FTP 密码: " ftp_pass
+    read -p "源文件路径: " source_file
+    read -p "目标路径 (例如 /data/): " target_path
+    echo -e "${YELLOW}正在使用 FTP 传输文件...${RESET}"
+
+    # 确保 FTP 命令格式正确，结束 EOF 标签要正确
+    ftp -inv "$ftp_server" <<EOF
+    user "$ftp_user" "$ftp_pass"
+    put "$source_file" "$target_path"
+    bye
+EOF
+
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}文件传输成功！${RESET}"
+    else
+        echo -e "${RED}文件传输失败！请检查FTP连接设置！${RESET}"
+    fi
+else
+    echo -e "${RED}无效的选项！${RESET}"
+fi
+
 
 esac
