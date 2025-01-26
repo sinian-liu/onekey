@@ -596,5 +596,4 @@ EOL
     echo -e "${GREEN}NekoNekoStatus 数据迁移和域名更换完成！${RESET}"
     echo -e "${YELLOW}您现在可以通过 https://$new_domain（或旧域名）访问 NekoNekoStatus。${RESET}"
     ;;
-    
 esac
