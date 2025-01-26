@@ -308,45 +308,57 @@ case $option in
         fi
         ;;
 
-    13)
-        # 服务器对服务器传文件
-        echo -e "${GREEN}服务器对服务器传文件${RESET}"
+13)
+    # 服务器对服务器传文件
+    echo -e "${GREEN}服务器对服务器传文件${RESET}"
 
-        # 输入目标服务器 IP 地址
-        read -p "请输入目标服务器IP地址（例如：185.106.96.93）： " target_ip
-
-        # 输入目标服务器密码
-        read -s -p "请输入目标服务器密码：" ssh_password
-        echo  # 换行
-
-        # 验证目标服务器的 SSH 密码
-        echo -e "${YELLOW}正在验证目标服务器的 SSH 连接...${RESET}"
-        sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no root@"$target_ip" "echo 'SSH 连接成功！'" &> /dev/null
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}SSH 连接验证成功！${RESET}"
-
-            # 输入源文件路径和目标文件路径
-            read -p "请输入源文件路径（例如：/root/data/vlive/test.mp4）： " source_file
-            read -p "请输入目标文件路径（例如：/root/data/vlive/）： " target_path
-
-            # 执行 scp 命令
-            echo -e "${YELLOW}正在传输文件，请稍候...${RESET}"
-            sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no "$source_file" root@"$target_ip":"$target_path"
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}文件传输成功！${RESET}"
-            else
-                echo -e "${RED}文件传输失败，请检查路径和网络连接。${RESET}"
-            fi
-        else
-            echo -e "${RED}SSH 连接失败，请检查以下内容：${RESET}"
-            echo -e "${YELLOW}1. 目标服务器 IP 地址是否正确。${RESET}"
-            echo -e "${YELLOW}2. 目标服务器的 SSH 服务是否已开启。${RESET}"
-            echo -e "${YELLOW}3. 目标服务器的 root 用户密码是否正确。${RESET}"
-            echo -e "${YELLOW}4. 目标服务器的防火墙是否允许 SSH 连接。${RESET}"
+    # 检查是否安装了 sshpass
+    if ! command -v sshpass &> /dev/null; then
+        echo -e "${YELLOW}检测到 sshpass 缺失，正在安装...${RESET}"
+        sudo apt update && sudo apt install -y sshpass
+        if ! command -v sshpass &> /dev/null; then
+            echo -e "${RED}安装 sshpass 失败，请手动安装！${RESET}"
+            exit 1
         fi
-        ;;
+    fi
 
-    *)
-        echo -e "${RED}无效选项，请重新运行脚本并选择正确的选项。${RESET}"
-        ;;
+    # 输入目标服务器 IP 地址
+    read -p "请输入目标服务器IP地址（例如：185.106.96.93）： " target_ip
+
+    # 输入目标服务器 SSH 端口（默认为 22）
+    read -p "请输入目标服务器SSH端口（默认为22）： " ssh_port
+    ssh_port=${ssh_port:-22}  # 如果未输入，则使用默认端口 22
+
+    # 输入目标服务器密码
+    read -s -p "请输入目标服务器密码：" ssh_password
+    echo  # 换行
+
+    # 验证目标服务器的 SSH 连接
+    echo -e "${YELLOW}正在验证目标服务器的 SSH 连接...${RESET}"
+    sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$target_ip" "echo 'SSH 连接成功！'" &> /dev/null
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}SSH 连接验证成功！${RESET}"
+
+        # 输入源文件路径和目标文件路径
+        read -p "请输入源文件路径（例如：/root/data/vlive/test.mp4）： " source_file
+        read -p "请输入目标文件路径（例如：/root/data/vlive/）： " target_path
+
+        # 执行 scp 命令
+        echo -e "${YELLOW}正在传输文件，请稍候...${RESET}"
+        sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$ssh_port" "$source_file" root@"$target_ip":"$target_path"
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}文件传输成功！${RESET}"
+        else
+            echo -e "${RED}文件传输失败，请检查路径和网络连接。${RESET}"
+        fi
+    else
+        echo -e "${RED}SSH 连接失败，请检查以下内容：${RESET}"
+        echo -e "${YELLOW}1. 目标服务器 IP 地址是否正确。${RESET}"
+        echo -e "${YELLOW}2. 目标服务器的 SSH 服务是否已开启。${RESET}"
+        echo -e "${YELLOW}3. 目标服务器的 root 用户密码是否正确。${RESET}"
+        echo -e "${YELLOW}4. 目标服务器的防火墙是否允许 SSH 连接。${RESET}"
+        echo -e "${YELLOW}5. 目标服务器的 SSH 端口是否为 $ssh_port。${RESET}"
+    fi
+    ;;
+    
 esac
