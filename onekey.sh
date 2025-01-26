@@ -91,70 +91,70 @@ echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装Windows或Linux系统${RESET}"
+echo -e "${YELLOW}13. 服务器对服务器传文件${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
-read -p "请输入选项 [1-12]:" option
+read -p "请输入选项 [1-13]:" option
 
 case $option in
     1)
-      # VPS 一键测试脚本
+        # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
         bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
         ;;
     2)
-      # BBR 安装脚本
+        # BBR 安装脚本
         echo -e "${GREEN}正在安装 BBR ...${RESET}"
         wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
         ;;
     3)
-      # 安装 v2ray 脚本
+        # 安装 v2ray 脚本
         echo -e "${GREEN}正在安装 v2ray ...${RESET}"
         wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
         ;;
     4)
-      # 无人直播云 SRS 安装
-    echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
+        # 无人直播云 SRS 安装
+        echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
+        # 提示用户输入管理端口号
+        read -p "请输入要使用的管理端口号 (默认为2022): " mgmt_port
+        mgmt_port=${mgmt_port:-2022}  # 如果没有输入，则使用默认端口2022
 
-    # 提示用户输入管理端口号
-    read -p "请输入要使用的管理端口号 (默认为2022): " mgmt_port
-    mgmt_port=${mgmt_port:-2022}  # 如果没有输入，则使用默认端口2022
+        # 检测端口是否被占用
+        check_port() {
+            local port=$1
+            if netstat -tuln | grep ":$port" > /dev/null; then
+                return 1
+            else
+                return 0
+            fi
+        }
 
-    # 检测端口是否被占用
-    check_port() {
-        local port=$1
-        if netstat -tuln | grep ":$port" > /dev/null; then
-            return 1
-        else
-            return 0
+        # 检查管理端口是否被占用
+        check_port $mgmt_port
+        if [ $? -eq 1 ]; then
+            echo -e "${RED}端口 $mgmt_port 已被占用！${RESET}"
+            read -p "请输入其他端口号作为管理端口: " mgmt_port
         fi
-    }
 
-    # 检查管理端口是否被占用
-    check_port $mgmt_port
-    if [ $? -eq 1 ]; then
-        echo -e "${RED}端口 $mgmt_port 已被占用！${RESET}"
-        read -p "请输入其他端口号作为管理端口: " mgmt_port
-    fi
+        # 安装 Docker
+        sudo apt-get update
+        sudo apt-get install -y docker.io
 
-    # 安装 Docker
-    sudo apt-get update
-    sudo apt-get install -y docker.io
+        # 启动 SRS 容器
+        docker run --restart always -d --name srs-stack -it -p $mgmt_port:2022 -p 1935:1935/tcp -p 1985:1985/tcp \
+          -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
+          -v $HOME/db:/data ossrs/srs-stack:5
 
-    # 启动 SRS 容器
-    docker run --restart always -d --name srs-stack -it -p $mgmt_port:2022 -p 1935:1935/tcp -p 1985:1985/tcp \
-      -p 8080:8080/tcp -p 8000:8000/udp -p 10080:10080/udp \
-      -v $HOME/db:/data ossrs/srs-stack:5
+        # 获取服务器 IPv4 地址
+        server_ip=$(curl -s4 ifconfig.me)
 
-    # 获取服务器 IPv4 地址
-    server_ip=$(curl -s4 ifconfig.me)
-
-    # 输出访问地址
-    echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
-    echo -e "${YELLOW}http://$server_ip:$mgmt_port/mgmt${RESET}"
-    ;;
+        # 输出访问地址
+        echo -e "${GREEN}SRS 安装完成！您可以通过以下地址访问管理界面:${RESET}"
+        echo -e "${YELLOW}http://$server_ip:$mgmt_port/mgmt${RESET}"
+        ;;
 
     5)
-      # 宝塔纯净版安装
+        # 宝塔纯净版安装
         echo -e "${GREEN}正在安装宝塔面板...${RESET}"
         if [ -f /etc/lsb-release ]; then
             # Ubuntu 或 Debian 系统
@@ -166,21 +166,20 @@ case $option in
             echo -e "${RED}无法识别您的操作系统，无法安装宝塔面板。${RESET}"
         fi
         ;;
-        
 
     6)
-      # 系统更新命令
+        # 系统更新命令
         sudo apt-get update -y && sudo apt-get upgrade -y
         ;;
-    
+
     7)
-      # 重启服务器
+        # 重启服务器
         echo -e "${GREEN}正在重启服务器 ...${RESET}"
         sudo reboot
         ;;
 
     8)
-      # 永久禁用 IPv6
+        # 永久禁用 IPv6
         echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
         if [ -f /etc/lsb-release ]; then
@@ -203,7 +202,7 @@ case $option in
         ;;
 
     9)
-      # 解除禁用 IPv6
+        # 解除禁用 IPv6
         echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
         if [ -f /etc/lsb-release ]; then
@@ -231,8 +230,9 @@ case $option in
         sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         sudo service cron restart
         ;;
+
     11)
-       # 长时间保持 SSH 会话连接不断开
+        # 长时间保持 SSH 会话连接不断开
         echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
         read -p "请输入每次心跳请求的间隔时间（单位：分钟，默认为5分钟）： " interval
         interval=${interval:-5}  # 默认值为5分钟
@@ -253,58 +253,100 @@ case $option in
         ;;
 
     12)
-       # KVM安装系统,检测操作系统类型
-check_system() {
-    if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
-        SYSTEM="debian"
-    elif grep -qi "centos" /etc/os-release || grep -qi "red hat" /etc/os-release; then
-        SYSTEM="centos"
-    else
-        SYSTEM="unknown"
-    fi
-}
+        # KVM安装系统,检测操作系统类型
+        check_system() {
+            if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
+                SYSTEM="debian"
+            elif grep -qi "centos" /etc/os-release || grep -qi "red hat" /etc/os-release; then
+                SYSTEM="centos"
+            else
+                SYSTEM="unknown"
+            fi
+        }
 
-if [[ $option -eq 12 ]]; then
-    echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
-    check_system
+        if [[ $option -eq 12 ]]; then
+            echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
+            check_system
 
-    if [[ $SYSTEM == "debian" ]]; then
-        echo -e "${YELLOW}检测到系统为 Debian/Ubuntu，开始安装必要依赖...${RESET}"
-        apt-get install -y xz-utils openssl gawk file wget screen
-        if [[ $? -eq 0 ]]; then
-            echo -e "${YELLOW}必要依赖安装完成，开始更新系统软件包...${RESET}"
-            apt update -y && apt dist-upgrade -y
-            if [[ $? -ne 0 ]]; then
-                echo -e "${RED}系统更新失败，请检查网络或镜像源！${RESET}"
+            if [[ $SYSTEM == "debian" ]]; then
+                echo -e "${YELLOW}检测到系统为 Debian/Ubuntu，开始安装必要依赖...${RESET}"
+                apt-get install -y xz-utils openssl gawk file wget screen
+                if [[ $? -eq 0 ]]; then
+                    echo -e "${YELLOW}必要依赖安装完成，开始更新系统软件包...${RESET}"
+                    apt update -y && apt dist-upgrade -y
+                    if [[ $? -ne 0 ]]; then
+                        echo -e "${RED}系统更新失败，请检查网络或镜像源！${RESET}"
+                        exit 1
+                    fi
+                else
+                    echo -e "${RED}必要依赖安装失败，请检查网络或镜像源！${RESET}"
+                    exit 1
+                fi
+
+            elif [[ $SYSTEM == "centos" ]]; then
+                echo -e "${YELLOW}检测到系统为 RedHat/CentOS，开始安装必要依赖...${RESET}"
+                yum install -y xz openssl gawk file glibc-common wget screen
+                if [[ $? -ne 0 ]]; then
+                    echo -e "${RED}依赖安装失败，请检查网络或镜像源！${RESET}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}不支持的操作系统！${RESET}"
                 exit 1
             fi
+
+            echo -e "${YELLOW}开始下载并运行安装脚本...${RESET}"
+            wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags
+            if [[ $? -eq 0 ]]; then
+                chmod a+x NewReinstall.sh
+                bash NewReinstall.sh
+                echo -e "${GREEN}安装完成！${RESET}"
+            else
+                echo -e "${RED}脚本下载失败，请检查网络或镜像源！${RESET}"
+                exit 1
+            fi
+        fi
+        ;;
+
+    13)
+        # 服务器对服务器传文件
+        echo -e "${GREEN}服务器对服务器传文件${RESET}"
+
+        # 输入目标服务器 IP 地址
+        read -p "请输入目标服务器IP地址（例如：185.106.96.93）： " target_ip
+
+        # 输入目标服务器密码
+        read -s -p "请输入目标服务器密码：" ssh_password
+        echo  # 换行
+
+        # 验证目标服务器的 SSH 密码
+        echo -e "${YELLOW}正在验证目标服务器的 SSH 连接...${RESET}"
+        sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no root@"$target_ip" "echo 'SSH 连接成功！'" &> /dev/null
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}SSH 连接验证成功！${RESET}"
+
+            # 输入源文件路径和目标文件路径
+            read -p "请输入源文件路径（例如：/root/data/vlive/test.mp4）： " source_file
+            read -p "请输入目标文件路径（例如：/root/data/vlive/）： " target_path
+
+            # 执行 scp 命令
+            echo -e "${YELLOW}正在传输文件，请稍候...${RESET}"
+            sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no "$source_file" root@"$target_ip":"$target_path"
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}文件传输成功！${RESET}"
+            else
+                echo -e "${RED}文件传输失败，请检查路径和网络连接。${RESET}"
+            fi
         else
-            echo -e "${RED}必要依赖安装失败，请检查网络或镜像源！${RESET}"
-            exit 1
+            echo -e "${RED}SSH 连接失败，请检查以下内容：${RESET}"
+            echo -e "${YELLOW}1. 目标服务器 IP 地址是否正确。${RESET}"
+            echo -e "${YELLOW}2. 目标服务器的 SSH 服务是否已开启。${RESET}"
+            echo -e "${YELLOW}3. 目标服务器的 root 用户密码是否正确。${RESET}"
+            echo -e "${YELLOW}4. 目标服务器的防火墙是否允许 SSH 连接。${RESET}"
         fi
+        ;;
 
-    elif [[ $SYSTEM == "centos" ]]; then
-        echo -e "${YELLOW}检测到系统为 RedHat/CentOS，开始安装必要依赖...${RESET}"
-        yum install -y xz openssl gawk file glibc-common wget screen
-        if [[ $? -ne 0 ]]; then
-            echo -e "${RED}依赖安装失败，请检查网络或镜像源！${RESET}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}不支持的操作系统！${RESET}"
-        exit 1
-    fi
-
-    echo -e "${YELLOW}开始下载并运行安装脚本...${RESET}"
-    wget --no-check-certificate -O NewReinstall.sh https://git.io/newbetags
-    if [[ $? -eq 0 ]]; then
-        chmod a+x NewReinstall.sh
-        bash NewReinstall.sh
-        echo -e "${GREEN}安装完成！${RESET}"
-    else
-        echo -e "${RED}脚本下载失败，请检查网络或镜像源！${RESET}"
-        exit 1
-    fi
-fi
-
+    *)
+        echo -e "${RED}无效选项，请重新运行脚本并选择正确的选项。${RESET}"
+        ;;
 esac
