@@ -91,7 +91,7 @@ echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
 echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
 echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12. 安装Windows或Linux系统${RESET}"
-echo -e "${YELLOW}13. 服务器对服务器传文件${RESET}"
+echo -e "${YELLOW}13. 服务器对服务器文件传输${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项 [1-13]:" option
