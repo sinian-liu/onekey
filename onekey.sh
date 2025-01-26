@@ -437,7 +437,7 @@ case $option in
     docker run --restart=on-failure --name nekonekostatus -p $container_port:5555 -d nkeonkeo/nekonekostatus:latest
 
     # 提示用户输入域名和邮箱
-    read -p "请输入您的域名（例如：server.1373737.xyz）： " domain
+    read -p "请输入您的域名（例如：www.example.com）： " domain
     read -p "请输入您的邮箱（用于 Let's Encrypt 证书）： " email
 
     # 安装 Nginx 和 Certbot
@@ -541,7 +541,7 @@ EOL
 
     if [[ "$change_domain" == "y" || "$change_domain" == "Y" ]]; then
         # 询问新域名
-        read -p "请输入新域名（例如：new.server.1373737.xyz）： " new_domain
+        read -p "请输入新域名（例如：www.example.com）： " new_domain
         read -p "请输入您的邮箱（用于 Let's Encrypt 证书）： " email
 
         # 安装 Nginx 和 Certbot
