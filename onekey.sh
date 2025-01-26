@@ -543,9 +543,19 @@ EOL
         exit 1
     fi
 
+    # 自动检测 Docker 容器的数据挂载路径
+    echo -e "${YELLOW}正在自动检测 Docker 容器的数据挂载路径...${RESET}"
+    db_path=$(sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$old_server_ip" "docker inspect nekonekostatus --format '{{ range .Mounts }}{{ if eq .Destination \"/app/database\" }}{{ .Source }}{{ end }}{{ end }}'")
+    if [ -z "$db_path" ]; then
+        echo -e "${RED}未找到 NekoNekoStatus 数据挂载路径，请确保旧机器已安装 NekoNekoStatus。${RESET}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}检测到 NekoNekoStatus 数据挂载路径：$db_path${RESET}"
+
     # 备份旧机器的 NekoNekoStatus 数据
     echo -e "${YELLOW}正在备份旧机器的 NekoNekoStatus 数据...${RESET}"
-    sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$ssh_port" root@"$old_server_ip":/root/nekonekostatus/database/db.db /root/nekonekostatus/database/db.db
+    sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$ssh_port" root@"$old_server_ip":"$db_path/db.db" /root/nekonekostatus/database/db.db
     if [ $? -ne 0 ]; then
         echo -e "${RED}备份失败，请检查旧机器的 NekoNekoStatus 数据路径是否正确。${RESET}"
         exit 1
