@@ -513,9 +513,9 @@ EOL
     read -s -p "请输入旧机器的 root 密码：" ssh_password
     echo  # 换行
 
-    # 验证旧机器的 SSH 连接
-    echo -e "${YELLOW}正在验证旧机器的 SSH 连接...${RESET}"
-    sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$old_server_ip" "echo 'SSH 连接成功！'" &> /dev/null
+    # 手动测试 SSH 连接
+    echo -e "${YELLOW}正在手动测试 SSH 连接...${RESET}"
+    sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$old_server_ip" "echo 'SSH 连接成功！'"
     if [ $? -ne 0 ]; then
         echo -e "${RED}SSH 连接失败，请检查以下内容：${RESET}"
         echo -e "${YELLOW}1. 旧机器的 IP 地址是否正确。${RESET}"
@@ -523,6 +523,7 @@ EOL
         echo -e "${YELLOW}3. 旧机器的 root 用户密码是否正确。${RESET}"
         echo -e "${YELLOW}4. 旧机器的防火墙是否允许 SSH 连接。${RESET}"
         echo -e "${YELLOW}5. 旧机器的 SSH 端口是否为 $ssh_port。${RESET}"
+        echo -e "${YELLOW}6. 旧机器的 SSH 配置文件是否允许 root 登录。${RESET}"
         exit 1
     fi
 
