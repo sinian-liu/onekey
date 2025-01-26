@@ -492,6 +492,22 @@ EOL
     # 探针备份并更换绑定域名
     echo -e "${GREEN}正在备份 NekoNekoStatus 数据并更换绑定域名...${RESET}"
 
+    # 检查并安装 sshpass
+    if ! command -v sshpass &> /dev/null; then
+        echo -e "${YELLOW}检测到 sshpass 未安装，正在安装 sshpass...${RESET}"
+        if command -v apt &> /dev/null; then
+            sudo apt update -y
+            sudo apt install -y sshpass
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y sshpass
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y sshpass
+        else
+            echo -e "${RED}无法自动安装 sshpass，请手动安装！${RESET}"
+            exit 1
+        fi
+    fi
+
     # 检查 Docker 是否已安装
     if ! command -v docker &> /dev/null; then
         echo -e "${YELLOW}检测到 Docker 未安装，正在安装 Docker...${RESET}"
@@ -541,7 +557,7 @@ EOL
 
     if [[ "$change_domain" == "y" || "$change_domain" == "Y" ]]; then
         # 询问新域名
-        read -p "请输入新域名（例如：www.example.com）： " new_domain
+        read -p "请输入新域名（例如：new.server.1373737.xyz）： " new_domain
         read -p "请输入您的邮箱（用于 Let's Encrypt 证书）： " email
 
         # 安装 Nginx 和 Certbot
