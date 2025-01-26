@@ -96,7 +96,7 @@ echo -e "${YELLOW}14.安装探针并绑定域名${RESET}"
 echo -e "${YELLOW}15.探针备份并更换绑定域名${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
-read -p "请输入选项 [1-13]:" option
+read -p "请输入选项:" option
 
 case $option in
     1)
