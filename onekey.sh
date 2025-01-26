@@ -88,10 +88,11 @@ echo -e "${YELLOW}6. 系统更新${RESET}"
 echo -e "${YELLOW}7. 重启服务器${RESET}"
 echo -e "${YELLOW}8. 一键永久禁用IPv6${RESET}"
 echo -e "${YELLOW}9. 一键解除禁用IPv6${RESET}"
-echo -e "${YELLOW}10. 服务器时区修改为中国时区${RESET}"
-echo -e "${YELLOW}11. 保持SSH会话一直连接不断开${RESET}"
-echo -e "${YELLOW}12. 安装Windows或Linux系统${RESET}"
-echo -e "${YELLOW}13. 服务器对服务器文件传输${RESET}"
+echo -e "${YELLOW}10.服务器时区修改为中国时区${RESET}"
+echo -e "${YELLOW}11.保持SSH会话一直连接不断开${RESET}"
+echo -e "${YELLOW}12.安装Windows或Linux系统${RESET}"
+echo -e "${YELLOW}13.服务器对服务器文件传输${RESET}"
+echo -e "${YELLOW}14.安装 NekoNekoStatus 服务器探针并绑定域名${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项 [1-13]:" option
@@ -359,6 +360,132 @@ case $option in
         echo -e "${YELLOW}4. 目标服务器的防火墙是否允许 SSH 连接。${RESET}"
         echo -e "${YELLOW}5. 目标服务器的 SSH 端口是否为 $ssh_port。${RESET}"
     fi
+    ;;
+    14)
+    # 安装 NekoNekoStatus 服务器探针并绑定域名
+    echo -e "${GREEN}正在安装 NekoNekoStatus 服务器探针并绑定域名...${RESET}"
+
+    # 检查 Docker 是否已安装
+    if ! command -v docker &> /dev/null; then
+        echo -e "${YELLOW}检测到 Docker 未安装，正在安装 Docker...${RESET}"
+        curl -fsSL https://get.docker.com | bash -s docker
+        if ! command -v docker &> /dev/null; then
+            echo -e "${RED}Docker 安装失败，请手动安装 Docker！${RESET}"
+            exit 1
+        fi
+    fi
+
+    # 询问容器端口
+    read -p "请输入 NekoNekoStatus 容器端口（默认为 5555）： " container_port
+    container_port=${container_port:-5555}  # 如果未输入，则使用默认端口 5555
+
+    # 询问反向代理端口
+    read -p "请输入反向代理端口（默认为 80）： " proxy_port
+    proxy_port=${proxy_port:-80}  # 如果未输入，则使用默认端口 80
+
+    # 检测端口是否开放
+    check_port() {
+        local port=$1
+        if netstat -tuln | grep ":$port" > /dev/null; then
+            return 1  # 端口已被占用
+        else
+            return 0  # 端口未占用
+        fi
+    }
+
+    # 检测容器端口
+    check_port $container_port
+    if [ $? -eq 1 ]; then
+        echo -e "${RED}端口 $container_port 已被占用，请选择其他端口！${RESET}"
+        exit 1
+    fi
+
+    # 检测反向代理端口
+    check_port $proxy_port
+    if [ $? -eq 1 ]; then
+        echo -e "${RED}端口 $proxy_port 已被占用，请选择其他端口！${RESET}"
+        exit 1
+    fi
+
+    # 开放端口
+    open_port() {
+        local port=$1
+        if command -v ufw &> /dev/null; then
+            sudo ufw allow $port
+        elif command -v firewall-cmd &> /dev/null; then
+            sudo firewall-cmd --zone=public --add-port=$port/tcp --permanent
+            sudo firewall-cmd --reload
+        else
+            echo -e "${YELLOW}未检测到 ufw 或 firewalld，请手动开放端口 $port。${RESET}"
+        fi
+    }
+
+    # 开放容器端口
+    echo -e "${YELLOW}正在开放容器端口 $container_port...${RESET}"
+    open_port $container_port
+
+    # 开放反向代理端口
+    echo -e "${YELLOW}正在开放反向代理端口 $proxy_port...${RESET}"
+    open_port $proxy_port
+
+    # 拉取并运行 NekoNekoStatus Docker 容器
+    echo -e "${YELLOW}正在拉取 NekoNekoStatus Docker 镜像...${RESET}"
+    docker pull nkeonkeo/nekonekostatus:latest
+
+    echo -e "${YELLOW}正在启动 NekoNekoStatus 容器...${RESET}"
+    docker run --restart=on-failure --name nekonekostatus -p $container_port:5555 -d nkeonkeo/nekonekostatus:latest
+
+    # 提示用户输入域名和邮箱
+    read -p "请输入您的域名（例如：server.1373737.xyz）： " domain
+    read -p "请输入您的邮箱（用于 Let's Encrypt 证书）： " email
+
+    # 安装 Nginx 和 Certbot
+    if ! command -v nginx &> /dev/null; then
+        echo -e "${YELLOW}正在安装 Nginx...${RESET}"
+        sudo apt update -y
+        sudo apt install -y nginx
+    fi
+
+    if ! command -v certbot &> /dev/null; then
+        echo -e "${YELLOW}正在安装 Certbot...${RESET}"
+        sudo apt install -y certbot python3-certbot-nginx
+    fi
+
+    # 配置 Nginx
+    echo -e "${YELLOW}正在配置 Nginx...${RESET}"
+    cat > /etc/nginx/sites-available/$domain <<EOL
+server {
+    listen $proxy_port;
+    server_name $domain;
+
+    location / {
+        proxy_pass http://127.0.0.1:$container_port;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+
+    # 启用站点配置
+    sudo ln -s /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/
+    sudo nginx -t && sudo systemctl reload nginx
+
+    # 申请 Let's Encrypt 证书
+    echo -e "${YELLOW}正在申请 Let's Encrypt 证书...${RESET}"
+    sudo certbot --nginx -d $domain --email $email --agree-tos --non-interactive
+
+    # 配置自动续期
+    echo -e "${YELLOW}正在配置证书自动续期...${RESET}"
+    (crontab -l 2>/dev/null; echo "0 0 * * * certbot renew --quiet && systemctl reload nginx") | crontab -
+
+    echo -e "${GREEN}NekoNekoStatus 安装和域名绑定完成！${RESET}"
+    echo -e "${YELLOW}您现在可以通过 https://$domain 访问 NekoNekoStatus。${RESET}"
+    echo -e "${YELLOW}容器端口: $container_port${RESET}"
+    echo -e "${YELLOW}反向代理端口: $proxy_port${RESET}"
+    echo -e "${YELLOW}默认密码: nekonekostatus${RESET}"
+    echo -e "${YELLOW}安装后务必修改密码！${RESET}"
     ;;
     
 esac
