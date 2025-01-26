@@ -93,7 +93,6 @@ echo -e "${YELLOW}11.保持SSH会话一直连接不断开${RESET}"
 echo -e "${YELLOW}12.安装Windows或Linux系统${RESET}"
 echo -e "${YELLOW}13.服务器对服务器文件传输${RESET}"
 echo -e "${YELLOW}14.安装探针并绑定域名${RESET}"
-echo -e "${YELLOW}15.探针备份并更换绑定域名${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项:" option
@@ -482,145 +481,10 @@ EOL
     (crontab -l 2>/dev/null; echo "0 0 * * * certbot renew --quiet && systemctl reload nginx") | crontab -
 
     echo -e "${GREEN}NekoNekoStatus 安装和域名绑定完成！${RESET}"
-    echo -e "${YELLOW}您现在可以通过 https://$domain 访问 NekoNekoStatus。${RESET}"
+    echo -e "${YELLOW}您现在可以通过 https://$domain 访问探针服务了。${RESET}"
     echo -e "${YELLOW}容器端口: $container_port${RESET}"
     echo -e "${YELLOW}反向代理端口: $proxy_port${RESET}"
     echo -e "${YELLOW}默认密码: nekonekostatus${RESET}"
     echo -e "${YELLOW}安装后务必修改密码！${RESET}"
-    ;;
-15)
-    # 探针备份并更换绑定域名
-    echo -e "${GREEN}正在备份 NekoNekoStatus 数据并更换绑定域名...${RESET}"
-
-    # 检查并安装 sshpass
-    if ! command -v sshpass &> /dev/null; then
-        echo -e "${YELLOW}检测到 sshpass 未安装，正在安装 sshpass...${RESET}"
-        if command -v apt &> /dev/null; then
-            sudo apt update -y
-            sudo apt install -y sshpass
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y sshpass
-        elif command -v dnf &> /dev/null; then
-            sudo dnf install -y sshpass
-        else
-            echo -e "${RED}无法自动安装 sshpass，请手动安装！${RESET}"
-            exit 1
-        fi
-    fi
-
-    # 检查 Docker 是否已安装
-    if ! command -v docker &> /dev/null; then
-        echo -e "${YELLOW}检测到 Docker 未安装，正在安装 Docker...${RESET}"
-        curl -fsSL https://get.docker.com | bash -s docker
-        if ! command -v docker &> /dev/null; then
-            echo -e "${RED}Docker 安装失败，请手动安装 Docker！${RESET}"
-            exit 1
-        fi
-    fi
-
-    # 询问旧机器的 IP 地址
-    read -p "请输入旧机器的 IP 地址（例如：192.168.1.100）： " old_server_ip
-
-    # 询问旧机器的 SSH 端口（默认为 22）
-    read -p "请输入旧机器的 SSH 端口（默认为22）： " ssh_port
-    ssh_port=${ssh_port:-22}  # 如果未输入，则使用默认端口 22
-
-    # 询问旧机器的 root 密码
-    read -s -p "请输入旧机器的 root 密码：" ssh_password
-    echo  # 换行
-
-    # 手动测试 SSH 连接
-    echo -e "${YELLOW}正在手动测试 SSH 连接...${RESET}"
-    sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$old_server_ip" "echo 'SSH 连接成功！'"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}SSH 连接失败，请检查以下内容：${RESET}"
-        echo -e "${YELLOW}1. 旧机器的 IP 地址是否正确。${RESET}"
-        echo -e "${YELLOW}2. 旧机器的 SSH 服务是否已开启。${RESET}"
-        echo -e "${YELLOW}3. 旧机器的 root 用户密码是否正确。${RESET}"
-        echo -e "${YELLOW}4. 旧机器的防火墙是否允许 SSH 连接。${RESET}"
-        echo -e "${YELLOW}5. 旧机器的 SSH 端口是否为 $ssh_port。${RESET}"
-        echo -e "${YELLOW}6. 旧机器的 SSH 配置文件是否允许 root 登录。${RESET}"
-        exit 1
-    fi
-
-    # 自动检测 Docker 容器的数据挂载路径
-    echo -e "${YELLOW}正在自动检测 Docker 容器的数据挂载路径...${RESET}"
-    db_path=$(sshpass -p "$ssh_password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$ssh_port" root@"$old_server_ip" "docker inspect nekonekostatus --format '{{ range .Mounts }}{{ if eq .Destination \"/app/database\" }}{{ .Source }}{{ end }}{{ end }}'")
-    if [ -z "$db_path" ]; then
-        echo -e "${RED}未找到 NekoNekoStatus 数据挂载路径，请确保旧机器已安装 NekoNekoStatus。${RESET}"
-        exit 1
-    fi
-
-    echo -e "${GREEN}检测到 NekoNekoStatus 数据挂载路径：$db_path${RESET}"
-
-    # 备份旧机器的 NekoNekoStatus 数据
-    echo -e "${YELLOW}正在备份旧机器的 NekoNekoStatus 数据...${RESET}"
-    sshpass -p "$ssh_password" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P "$ssh_port" root@"$old_server_ip":"$db_path/db.db" /root/nekonekostatus/database/db.db
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}备份失败，请检查旧机器的 NekoNekoStatus 数据路径是否正确。${RESET}"
-        exit 1
-    fi
-
-    # 询问是否更换域名
-    read -p "是否需要更换域名？（y/n，默认为 n）： " change_domain
-    change_domain=${change_domain:-n}
-
-    if [[ "$change_domain" == "y" || "$change_domain" == "Y" ]]; then
-        # 询问新域名
-        read -p "请输入新域名（例如：new.server.1373737.xyz）： " new_domain
-        read -p "请输入您的邮箱（用于 Let's Encrypt 证书）： " email
-
-        # 安装 Nginx 和 Certbot
-        if ! command -v nginx &> /dev/null; then
-            echo -e "${YELLOW}正在安装 Nginx...${RESET}"
-            sudo apt update -y
-            sudo apt install -y nginx
-        fi
-
-        if ! command -v certbot &> /dev/null; then
-            echo -e "${YELLOW}正在安装 Certbot...${RESET}"
-            sudo apt install -y certbot python3-certbot-nginx
-        fi
-
-        # 配置 Nginx
-        echo -e "${YELLOW}正在配置 Nginx...${RESET}"
-        cat > /etc/nginx/sites-available/$new_domain <<EOL
-server {
-    listen 80;
-    server_name $new_domain;
-
-    location / {
-        proxy_pass http://127.0.0.1:5555;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOL
-
-        # 启用站点配置
-        sudo ln -s /etc/nginx/sites-available/$new_domain /etc/nginx/sites-enabled/
-        sudo nginx -t && sudo systemctl reload nginx
-
-        # 申请 Let's Encrypt 证书
-        echo -e "${YELLOW}正在申请 Let's Encrypt 证书...${RESET}"
-        sudo certbot --nginx -d $new_domain --email $email --agree-tos --non-interactive
-
-        # 配置自动续期
-        echo -e "${YELLOW}正在配置证书自动续期...${RESET}"
-        (crontab -l 2>/dev/null; echo "0 0 * * * certbot renew --quiet && systemctl reload nginx") | crontab -
-
-        echo -e "${GREEN}域名更换完成！您现在可以通过 https://$new_domain 访问 NekoNekoStatus。${RESET}"
-    else
-        echo -e "${YELLOW}未更换域名，继续使用旧域名。${RESET}"
-    fi
-
-    # 启动 NekoNekoStatus 容器
-    echo -e "${YELLOW}正在启动 NekoNekoStatus 容器...${RESET}"
-    docker run --restart=on-failure --name nekonekostatus -p 5555:5555 -v /root/nekonekostatus/database:/app/database -d nkeonkeo/nekonekostatus:latest
-
-    echo -e "${GREEN}NekoNekoStatus 数据迁移和域名更换完成！${RESET}"
-    echo -e "${YELLOW}您现在可以通过 https://$new_domain（或旧域名）访问 NekoNekoStatus。${RESET}"
     ;;
 esac
