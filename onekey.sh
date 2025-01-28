@@ -545,7 +545,7 @@ echo "现在你可以通过 https://$domain1 访问"
 echo "现在你可以通过 https://$domain2 访问"
 
 
-16)
+    16)
     # 脚本更新
     echo -e "${GREEN}正在更新脚本...${RESET}"
     wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
