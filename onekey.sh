@@ -491,135 +491,27 @@ EOL
     ;;
 15)
     # 共用端口（反代）
-    echo -e "${GREEN}正在配置HTTPS运行多个Web服务...${RESET}"
 
-    # 安装 Nginx 和 Certbot
-    if ! command -v nginx &> /dev/null; then
-        echo -e "${YELLOW}正在安装 Nginx...${RESET}"
-        sudo apt update -y
-        sudo apt install -y nginx
-    fi
+#!/bin/bash
 
-    if ! command -v certbot &> /dev/null; then
-        echo -e "${YELLOW}正在安装 Certbot...${RESET}"
-        sudo apt install -y certbot python3-certbot-nginx
-    fi
+# 询问第一个和第二个域名
+read -p "请输入第一个域名（例如：example1.com）： " domain1
+read -p "请输入第二个域名（例如：example2.com）： " domain2
 
-    # 检测端口是否被占用
-    check_port() {
-        local port=$1
-        if netstat -tuln | grep ":$port" > /dev/null; then
-            return 1  # 端口已被占用
-        else
-            return 0  # 端口未占用
-        fi
-    }
+# 询问反向代理的服务端口
+read -p "请输入反向代理的服务端口（例如：5555）： " proxy_port
 
-    # 获取占用端口的服务
-    get_service_using_port() {
-        local port=$1
-        sudo netstat -tuln | grep ":$port" | awk '{print $7}' | cut -d'/' -f1
-    }
-
-    # 自动分配可用端口
-    find_available_port() {
-        local start_port=$1
-        local end_port=$2
-        for port in $(seq $start_port $end_port); do
-            if ! check_port $port; then
-                echo $port
-                return 0
-            fi
-        done
-        echo -e "${RED}未找到可用端口！${RESET}"
-        exit 1
-    }
-
-    # 记录被停止的服务
-    stopped_services=""
-
-    # 检测 80 和 443 端口是否被占用
-    check_port 80
-    if [ $? -eq 1 ]; then
-        echo -e "${RED}端口 80 已被以下服务占用：${RESET}"
-        service_80=$(get_service_using_port 80)
-        echo -e "${YELLOW}$service_80${RESET}"
-        read -p "是否停止该服务并释放端口 80？(y/n): " stop_service
-        if [[ $stop_service == "y" || $stop_service == "Y" ]]; then
-            sudo systemctl stop $service_80
-            sudo systemctl disable $service_80
-            stopped_services="$stopped_services $service_80"
-            echo -e "${GREEN}已停止服务 $service_80 并释放端口 80。${RESET}"
-        else
-            new_port_80=$(find_available_port 8080 9000)
-            echo -e "${YELLOW}已将服务 $service_80 的端口修改为 $new_port_80。${RESET}"
-            # 更新服务的端口配置（假设服务是 Nginx）
-            sudo sed -i "s/listen 80/listen $new_port_80/g" /etc/nginx/sites-available/*
-            sudo systemctl restart nginx
-        fi
-    fi
-
-    check_port 443
-    if [ $? -eq 1 ]; then
-        echo -e "${RED}端口 443 已被以下服务占用：${RESET}"
-        service_443=$(get_service_using_port 443)
-        echo -e "${YELLOW}$service_443${RESET}"
-        read -p "是否停止该服务并释放端口 443？(y/n): " stop_service
-        if [[ $stop_service == "y" || $stop_service == "Y" ]]; then
-            sudo systemctl stop $service_443
-            sudo systemctl disable $service_443
-            stopped_services="$stopped_services $service_443"
-            echo -e "${GREEN}已停止服务 $service_443 并释放端口 443。${RESET}"
-        else
-            new_port_443=$(find_available_port 8443 9000)
-            echo -e "${YELLOW}已将服务 $service_443 的端口修改为 $new_port_443。${RESET}"
-            # 更新服务的端口配置（假设服务是 Nginx）
-            sudo sed -i "s/listen 443/listen $new_port_443/g" /etc/nginx/sites-available/*
-            sudo systemctl restart nginx
-        fi
-    fi
-
-    # 提示用户输入域名
-    read -p "请输入第一个域名（例如：example1.com）： " domain1
-    read -p "请输入第二个域名（例如：example2.com）： " domain2
-
-    # 配置 Nginx 反向代理
-    echo -e "${YELLOW}正在配置 Nginx 反向代理...${RESET}"
-    cat > /etc/nginx/sites-available/multi-site <<EOL
-# 重定向HTTP到HTTPS
+# 创建 Nginx 配置文件
+generate_nginx_conf() {
+    local domain=$1
+    local port=$2
+    cat > /etc/nginx/conf.d/$domain.conf <<EOL
 server {
     listen 80;
-    server_name $domain1 $domain2;
-    return 301 https://\$host\$request_uri;
-}
-
-# HTTPS配置 for $domain1
-server {
-    listen 443 ssl;
-    server_name $domain1;
-
-    ssl_certificate /etc/letsencrypt/live/$domain1/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$domain1/privkey.pem;
+    server_name $domain;
 
     location / {
-        proxy_pass http://localhost:8080;  # 内部转发到 8080
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-
-# HTTPS配置 for $domain2
-server {
-    listen 443 ssl;
-    server_name $domain2;
-
-    ssl_certificate /etc/letsencrypt/live/$domain2/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$domain2/privkey.pem;
-
-    location / {
-        proxy_pass http://localhost:8443;  # 内部转发到 8443
+        proxy_pass http://127.0.0.1:$port;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -627,55 +519,32 @@ server {
     }
 }
 EOL
+}
 
-    # 启用站点配置
-    sudo ln -s /etc/nginx/sites-available/multi-site /etc/nginx/sites-enabled/
-    sudo nginx -t && sudo systemctl reload nginx
+# 生成配置文件
+generate_nginx_conf $domain1 $proxy_port
+generate_nginx_conf $domain2 $proxy_port
 
-    # 申请 Let's Encrypt 证书
-    echo -e "${YELLOW}正在申请 Let's Encrypt 证书...${RESET}"
-    sudo certbot --nginx -d $domain1 --non-interactive --agree-tos -m admin@$domain1
-    sudo certbot --nginx -d $domain2 --non-interactive --agree-tos -m admin@$domain2
+# 提示用户配置文件已生成
+echo "Nginx 配置文件已生成，配置如下："
+echo "/etc/nginx/conf.d/$domain1.conf"
+echo "/etc/nginx/conf.d/$domain2.conf"
 
-    # 配置证书自动续期
-    echo -e "${YELLOW}正在配置证书自动续期...${RESET}"
-    (crontab -l 2>/dev/null; echo "0 0 * * * certbot renew --quiet && systemctl reload nginx") | crontab -
+# 询问是否重载 Nginx 服务
+read -p "是否立即重载 Nginx 服务？（y/n）： " reload_choice
+if [[ $reload_choice == "y" || $reload_choice == "Y" ]]; then
+    # 测试 Nginx 配置并重载服务
+    nginx -t && systemctl reload nginx
+    echo "Nginx 配置已重载！"
+else
+    echo "请手动重载 Nginx 服务以应用更改。"
+fi
 
-    # 重新启动被停止的服务
-    if [ -n "$stopped_services" ]; then
-        echo -e "${YELLOW}正在重新启动被停止的服务...${RESET}"
-        for service in $stopped_services; do
-            sudo systemctl enable $service
-            sudo systemctl start $service
-            echo -e "${GREEN}已重新启动服务 $service。${RESET}"
-        done
-    fi
+# 提示用户可以通过新的域名访问
+echo "现在你可以通过 https://$domain1 访问"
+echo "现在你可以通过 https://$domain2 访问"
 
-    # 自动开放防火墙端口
-    echo -e "${YELLOW}正在配置防火墙...${RESET}"
-    if command -v ufw &> /dev/null; then
-        echo -e "${GREEN}检测到 ufw，正在开放端口 80, 443, 8080, 8443...${RESET}"
-        sudo ufw allow 80/tcp
-        sudo ufw allow 443/tcp
-        sudo ufw allow 8080/tcp
-        sudo ufw allow 8443/tcp
-        sudo ufw reload
-    elif command -v firewall-cmd &> /dev/null; then
-        echo -e "${GREEN}检测到 firewalld，正在开放端口 80, 443, 8080, 8443...${RESET}"
-        sudo firewall-cmd --zone=public --add-port=80/tcp --permanent
-        sudo firewall-cmd --zone=public --add-port=443/tcp --permanent
-        sudo firewall-cmd --zone=public --add-port=8080/tcp --permanent
-        sudo firewall-cmd --zone=public --add-port=8443/tcp --permanent
-        sudo firewall-cmd --reload
-    else
-        echo -e "${RED}未检测到 ufw 或 firewalld，请手动开放端口 80, 443, 8080, 8443。${RESET}"
-    fi
 
-    echo -e "${GREEN}配置完成！${RESET}"
-    echo -e "${YELLOW}您现在可以通过以下地址访问服务：${RESET}"
-    echo -e "${YELLOW}https://$domain1${RESET}"
-    echo -e "${YELLOW}https://$domain2${RESET}"
-    ;;
     
 16)
     # 脚本更新
