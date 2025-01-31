@@ -95,7 +95,6 @@ echo -e "${YELLOW}12.安装Windows或Linux系统${RESET}"
 echo -e "${YELLOW}13.服务器对服务器文件传输${RESET}"
 echo -e "${YELLOW}14.安装探针并绑定域名${RESET}"
 echo -e "${YELLOW}15.共用端口（反代）${RESET}"
-echo -e "${YELLOW}16.脚本更新${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项:" option
