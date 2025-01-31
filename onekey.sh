@@ -79,6 +79,7 @@ echo -e "${GREEN}VPS评测官方网站：https://www.1373737.xyz/${RESET}"
 echo -e "${GREEN}YouTube频道：https://www.youtube.com/@cyndiboy7881${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 echo "请选择要执行的操作："
+echo -e "${YELLOW}0. 脚本更新${RESET}"
 echo -e "${YELLOW}1. VPS一键测试${RESET}"
 echo -e "${YELLOW}2. 安装BBR${RESET}"
 echo -e "${YELLOW}3. 安装v2ray${RESET}"
@@ -100,6 +101,19 @@ echo -e "${GREEN}=============================================${RESET}"
 read -p "请输入选项:" option
 
 case $option in
+    0)
+        # 脚本更新
+        echo -e "${GREEN}正在更新脚本...${RESET}"
+        wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
+        if [ $? -eq 0 ]; then
+            mv /tmp/onekey.sh /usr/local/bin/onekey.sh
+            chmod +x /usr/local/bin/onekey.sh
+            echo -e "${GREEN}脚本更新成功！${RESET}"
+            echo -e "${YELLOW}请重新运行脚本以应用更新。${RESET}"
+        else
+            echo -e "${RED}脚本更新失败，请检查网络连接！${RESET}"
+        fi
+        ;;
     1)
         # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
