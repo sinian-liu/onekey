@@ -673,23 +673,5 @@ main() {
 
 # 执行主函数
 main
-    
-16)
-    # 脚本更新
-    echo -e "${GREEN}正在更新脚本...${RESET}"
-    wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
-    if [ $? -eq 0 ]; then
-        mv /tmp/onekey.sh /usr/local/bin/onekey.sh
-        chmod +x /usr/local/bin/onekey.sh
-        echo -e "${GREEN}脚本更新成功！${RESET}"
-        echo -e "${YELLOW}请重新运行脚本以应用更新。${RESET}"
-    else
-        echo -e "${RED}脚本更新失败，请检查网络连接！${RESET}"
-    fi
-    ;;
 
-*)
-    echo -e "${RED}无效选项，请重新运行脚本并选择正确的选项。${RESET}"
-    ;;
-    
 esac
