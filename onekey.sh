@@ -492,7 +492,7 @@ EOL
 15)
 #!/bin/bash
 # 交互式Nginx多域名部署脚本
-# 支持检查现有域名和端口，自动申请Let's Encrypt证书
+# 支持多域名配置，自动申请Let's Encrypt证书，并将配置写入alone.conf
 
 # 检查root权限
 if [ "$EUID" -ne 0 ]; then
@@ -511,25 +511,6 @@ install_dependencies() {
         apt-get install -y certbot python3-certbot-nginx > /dev/null 2>&1
     fi
     echo "✅ 依赖已安装"
-}
-
-# 检查现有域名和端口
-check_existing_domains() {
-    echo "🔍 检查当前已配置的域名和端口："
-    if [ -d /etc/nginx/conf.d/ ]; then
-        for conf_file in /etc/nginx/conf.d/*.conf; do
-            if [ -f "$conf_file" ]; then
-                echo "➜ 配置文件: $conf_file"
-                domains=$(grep -oP 'server_name \K[^;]+' $conf_file)
-                ports=$(grep -oP 'listen \K[0-9]+' $conf_file | sort | uniq | tr '\n' ' ')
-                echo "  域名: $domains"
-                echo "  端口: $ports"
-                echo "------------------------"
-            fi
-        done
-    else
-        echo "⚠️  未找到 /etc/nginx/conf.d/ 目录，可能未安装Nginx"
-    fi
 }
 
 # 申请Let's Encrypt证书
@@ -551,16 +532,19 @@ request_certificate() {
 configure_nginx() {
     local domain=$1
     local port=$2
-    local conf_file="/etc/nginx/conf.d/${domain}.conf"
+    local conf_file="/etc/nginx/conf.d/alone.conf"
 
-    echo "➜ 为域名 $domain 配置Nginx..."
-    cat > $conf_file <<EOF
+    echo "➜ 为域名 $domain 配置Nginx反向代理..."
+    cat >> $conf_file <<EOF
+
+# HTTP重定向到HTTPS
 server {
     listen 80;
     server_name $domain;
     return 301 https://\$host\$request_uri;
 }
 
+# HTTPS服务
 server {
     listen 443 ssl http2;
     server_name $domain;
@@ -611,7 +595,14 @@ main() {
     echo "------------------------"
 
     # 检查现有域名和端口
-    check_existing_domains
+    echo "🔍 检查当前已配置的域名和端口："
+    if [ -f /etc/nginx/conf.d/alone.conf ]; then
+        grep -oP 'server_name \K[^;]+' /etc/nginx/conf.d/alone.conf | sort | uniq | while read -r domain; do
+            echo "  域名: $domain"
+        done
+    else
+        echo "⚠️  未找到 /etc/nginx/conf.d/alone.conf 文件，将创建新配置"
+    fi
 
     # 输入管理员邮箱
     read -p "请输入管理员邮箱（用于证书通知）: " ADMIN_EMAIL
