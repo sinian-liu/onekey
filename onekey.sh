@@ -79,6 +79,7 @@ echo -e "${GREEN}VPS评测官方网站：https://www.1373737.xyz/${RESET}"
 echo -e "${GREEN}YouTube频道：https://www.youtube.com/@cyndiboy7881${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 echo "请选择要执行的操作："
+echo -e "${YELLOW}0.脚本更新${RESET}"
 echo -e "${YELLOW}1. VPS一键测试${RESET}"
 echo -e "${YELLOW}2. 安装BBR${RESET}"
 echo -e "${YELLOW}3. 安装v2ray${RESET}"
@@ -95,28 +96,45 @@ echo -e "${YELLOW}13.安装Windows或Linux系统${RESET}"
 echo -e "${YELLOW}14.服务器对服务器文件传输${RESET}"
 echo -e "${YELLOW}15.安装探针并绑定域名${RESET}"
 echo -e "${YELLOW}16.共用端口（反代）${RESET}"
-echo -e "${YELLOW}17.脚本更新${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项:" option
 
 case $option in
-    1)
+0)
+    # 脚本更新
+    echo -e "${GREEN}正在更新脚本...${RESET}"
+    wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
+    if [ $? -eq 0 ]; then
+        mv /tmp/onekey.sh /usr/local/bin/onekey.sh
+        chmod +x /usr/local/bin/onekey.sh
+        echo -e "${GREEN}脚本更新成功！${RESET}"
+        echo -e "${YELLOW}请重新运行脚本以应用更新。${RESET}"
+    else
+        echo -e "${RED}脚本更新失败，请检查网络连接！${RESET}"
+    fi
+    ;;
+
+*)
+    echo -e "${RED}无效选项，请重新运行脚本并选择正确的选项。${RESET}"
+    ;;
+    
+1)
         # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
         bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
         ;;
-    2)
+2)
         # BBR 安装脚本
         echo -e "${GREEN}正在安装 BBR ...${RESET}"
         wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
         ;;
-    3)
+3)
         # 安装 v2ray 脚本
         echo -e "${GREEN}正在安装 v2ray ...${RESET}"
         wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
         ;;
-    4)
+4)
         # 无人直播云 SRS 安装
         echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
         # 提示用户输入管理端口号
@@ -157,7 +175,7 @@ case $option in
         echo -e "${YELLOW}http://$server_ip:$mgmt_port/mgmt${RESET}"
         ;;
 
-    5)
+5)
         # 宝塔纯净版安装
         echo -e "${GREEN}正在安装宝塔面板...${RESET}"
         if [ -f /etc/lsb-release ]; then
@@ -171,18 +189,18 @@ case $option in
         fi
         ;;
 
-    6)
+6)
         # 系统更新命令
         sudo apt-get update -y && sudo apt-get upgrade -y
         ;;
 
-    7)
+7)
         # 重启服务器
         echo -e "${GREEN}正在重启服务器 ...${RESET}"
         sudo reboot
         ;;
 
-    8)
+8)
         # 修改服务器密码
         echo -e "${GREEN}请输入新密码：${RESET}"
         read -s new_password
@@ -202,7 +220,7 @@ case $option in
         fi
         ;;
         
-    9)
+9)
         # 永久禁用 IPv6
         echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
@@ -225,7 +243,7 @@ case $option in
         fi
         ;;
 
-    10)
+10)
         # 解除禁用 IPv6
         echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
@@ -248,14 +266,14 @@ case $option in
         fi
         ;;
 
-    11)
+11)
         # 服务器时区修改为中国时区
         echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
         sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         sudo service cron restart
         ;;
 
-    12)
+12)
         # 长时间保持 SSH 会话连接不断开
         echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
         read -p "请输入每次心跳请求的间隔时间（单位：分钟，默认为5分钟）： " interval
@@ -276,7 +294,7 @@ case $option in
         echo -e "${GREEN}配置完成！心跳请求间隔为 $interval 分钟，最大无响应次数为 $max_count。${RESET}"
         ;;
 
-    13)
+13)
         # KVM安装系统,检测操作系统类型
         check_system() {
             if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
@@ -696,24 +714,6 @@ EOL
     echo -e "${YELLOW}您现在可以通过以下地址访问服务：${RESET}"
     echo -e "${YELLOW}https://$domain1${RESET}"
     echo -e "${YELLOW}https://$domain2${RESET}"
-    ;;
-    
-17)
-    # 脚本更新
-    echo -e "${GREEN}正在更新脚本...${RESET}"
-    wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
-    if [ $? -eq 0 ]; then
-        mv /tmp/onekey.sh /usr/local/bin/onekey.sh
-        chmod +x /usr/local/bin/onekey.sh
-        echo -e "${GREEN}脚本更新成功！${RESET}"
-        echo -e "${YELLOW}请重新运行脚本以应用更新。${RESET}"
-    else
-        echo -e "${RED}脚本更新失败，请检查网络连接！${RESET}"
-    fi
-    ;;
-
-*)
-    echo -e "${RED}无效选项，请重新运行脚本并选择正确的选项。${RESET}"
     ;;
     
 esac
