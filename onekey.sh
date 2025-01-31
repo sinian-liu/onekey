@@ -182,6 +182,26 @@ case $option in
         ;;
 
     8)
+        # 修改服务器密码
+        echo -e "${GREEN}请输入新密码：${RESET}"
+        read -s new_password
+        echo -e "${GREEN}请再次输入新密码以确认：${RESET}"
+        read -s confirm_password
+
+        if [ "$new_password" = "$confirm_password" ]; then
+            # 修改 root 用户密码
+            echo -e "$new_password\n$new_password" | sudo passwd root &>/dev/null
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}密码修改成功！${RESET}"
+            else
+                echo -e "${RED}密码修改失败，请检查系统配置或权限。${RESET}"
+            fi
+        else
+            echo -e "${RED}两次输入的密码不一致，请重试。${RESET}"
+        fi
+        ;;
+        
+    9)
         # 永久禁用 IPv6
         echo -e "${GREEN}正在禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
@@ -204,7 +224,7 @@ case $option in
         fi
         ;;
 
-    9)
+    10)
         # 解除禁用 IPv6
         echo -e "${GREEN}正在解除禁用 IPv6 ...${RESET}"
         # 检测系统类型（Ubuntu/Debian 或 CentOS/RHEL）
@@ -227,14 +247,14 @@ case $option in
         fi
         ;;
 
-    10)
+    11)
         # 服务器时区修改为中国时区
         echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
         sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         sudo service cron restart
         ;;
 
-    11)
+    12)
         # 长时间保持 SSH 会话连接不断开
         echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
         read -p "请输入每次心跳请求的间隔时间（单位：分钟，默认为5分钟）： " interval
@@ -255,7 +275,7 @@ case $option in
         echo -e "${GREEN}配置完成！心跳请求间隔为 $interval 分钟，最大无响应次数为 $max_count。${RESET}"
         ;;
 
-    12)
+    13)
         # KVM安装系统,检测操作系统类型
         check_system() {
             if grep -qi "debian" /etc/os-release || grep -qi "ubuntu" /etc/os-release; then
@@ -311,7 +331,7 @@ case $option in
         fi
         ;;
 
-13)
+14)
     # 服务器对服务器传文件
     echo -e "${GREEN}服务器对服务器传文件${RESET}"
 
@@ -363,7 +383,7 @@ case $option in
         echo -e "${YELLOW}5. 目标服务器的 SSH 端口是否为 $ssh_port。${RESET}"
     fi
     ;;
-14)
+15)
     # 安装 NekoNekoStatus 服务器探针并绑定域名
     echo -e "${GREEN}正在安装 NekoNekoStatus 服务器探针并绑定域名...${RESET}"
 
@@ -489,7 +509,7 @@ EOL
     echo -e "${YELLOW}默认密码: nekonekostatus${RESET}"
     echo -e "${YELLOW}安装后务必修改密码！${RESET}"
     ;;
-15)
+16)
     # 共用端口（反代）
     echo -e "${GREEN}正在配置HTTPS运行多个Web服务...${RESET}"
 
@@ -677,7 +697,7 @@ EOL
     echo -e "${YELLOW}https://$domain2${RESET}"
     ;;
     
-16)
+17)
     # 脚本更新
     echo -e "${GREEN}正在更新脚本...${RESET}"
     wget -O /tmp/onekey.sh https://raw.githubusercontent.com/sinian-liu/onekey/main/onekey.sh
