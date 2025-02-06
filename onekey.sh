@@ -116,7 +116,7 @@ case $option in
     1)
         # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
-        bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)
+        bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/onekey/main/system_info.sh)
         ;;
     2)
         # BBR 安装脚本
