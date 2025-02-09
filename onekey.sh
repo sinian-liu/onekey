@@ -288,7 +288,7 @@ case $option in
             fi
         }
 
-        if [[ $option -eq 12 ]]; then
+        if [[ $option -eq 13 ]]; then
             echo -e "${GREEN}开始安装 KVM 系统...${RESET}"
             check_system
 
