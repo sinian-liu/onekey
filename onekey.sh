@@ -512,7 +512,7 @@ EOL
     echo -e "${YELLOW}安装后务必修改密码！${RESET}"
     ;;
 16)
-#!/bin/bash
+# 共用端口（反代）
 # 交互式Nginx多域名部署脚本
 # 支持多域名配置，自动申请Let's Encrypt证书，并将配置写入alone.conf
 
@@ -685,8 +685,8 @@ main() {
 }
 
 # 执行主函数
-main
-
+    main
+    ;; 
 17)
     # 安装 curl 和 wget
     echo -e "${GREEN}正在安装 curl 和 wget ...${RESET}"
