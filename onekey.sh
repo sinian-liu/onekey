@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# 设置 trap，捕获 EXIT 信号并重新运行脚本
-trap 'bash "$0"' EXIT
-
 # 设置颜色
 GREEN="\033[32m"
 RED="\033[31m"
@@ -117,29 +114,21 @@ case $option in
         else
             echo -e "${RED}脚本更新失败，请检查网络连接！${RESET}"
         fi
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
     1)
         # VPS 一键测试脚本
         echo -e "${GREEN}正在进行 VPS 测试 ...${RESET}"
         bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/onekey/main/system_info.sh)
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
     2)
         # BBR 安装脚本
         echo -e "${GREEN}正在安装 BBR ...${RESET}"
         wget -O tcpx.sh "https://github.com/sinian-liu/Linux-NetSpeed-BBR/raw/master/tcpx.sh" && chmod +x tcpx.sh && ./tcpx.sh
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
     3)
         # 安装 v2ray 脚本
         echo -e "${GREEN}正在安装 v2ray ...${RESET}"
         wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
     4)
         # 无人直播云 SRS 安装
@@ -194,15 +183,11 @@ case $option in
         else
             echo -e "${RED}无法识别您的操作系统，无法安装宝塔面板。${RESET}"
         fi
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
 
     6)
         # 系统更新命令
         sudo apt-get update -y && sudo apt-get upgrade -y
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
     7)
         # 修改当前用户密码
@@ -210,7 +195,6 @@ case $option in
         echo -e "${GREEN}正在为 ${YELLOW}$username${GREEN} 修改密码...${RESET}"
         sudo passwd "$username"
         read -p "按回车键返回主菜单..."
-        exit
         ;;
 
     8)
@@ -240,8 +224,6 @@ case $option in
         else
             echo -e "${RED}无法识别您的操作系统，无法禁用 IPv6。${RESET}"
         fi
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
 
     10)
@@ -265,8 +247,6 @@ case $option in
         else
             echo -e "${RED}无法识别您的操作系统，无法解除禁用 IPv6。${RESET}"
         fi
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
 
     11)
@@ -274,8 +254,6 @@ case $option in
         echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
         sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         sudo service cron restart
-        read -p "按回车键返回主菜单..."
-        exit
         ;;
 
     12)
