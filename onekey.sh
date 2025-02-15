@@ -96,6 +96,7 @@ echo -e "${YELLOW}13.安装Windows或Linux系统${RESET}"
 echo -e "${YELLOW}14.服务器对服务器文件传输${RESET}"
 echo -e "${YELLOW}15.安装探针并绑定域名${RESET}"
 echo -e "${YELLOW}16.共用端口（反代）${RESET}"
+echo -e "${YELLOW}17.安装 curl 和 wget${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项:" option
@@ -685,5 +686,30 @@ main() {
 
 # 执行主函数
 main
+17)
+    # 安装 curl 和 wget
+    echo -e "${GREEN}正在安装 curl 和 wget ...${RESET}"
+    if ! command -v curl &> /dev/null; then
+        install_curl
+        if ! command -v curl &> /dev/null; then
+            echo -e "${RED}curl 安装失败，请手动检查问题！${RESET}"
+        else
+            echo -e "${GREEN}curl 安装成功！${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}curl 已经安装，跳过安装步骤。${RESET}"
+    fi
 
+    if ! command -v wget &> /dev/null; then
+        install_wget
+        if ! command -v wget &> /dev/null; then
+            echo -e "${RED}wget 安装失败，请手动检查问题！${RESET}"
+        else
+            echo -e "${GREEN}wget 安装成功！${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}wget 已经安装，跳过安装步骤。${RESET}"
+    fi
+    ;;
+    
 esac
