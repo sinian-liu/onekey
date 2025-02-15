@@ -687,26 +687,53 @@ main() {
 # 执行主函数
 main
 
-    17)
+17)
     # 安装 curl 和 wget
     echo -e "${GREEN}正在安装 curl 和 wget ...${RESET}"
+    
+    # 安装 curl
     if ! command -v curl &> /dev/null; then
-        install_curl
-        if ! command -v curl &> /dev/null; then
-            echo -e "${RED}curl 安装失败，请手动检查问题！${RESET}"
+        echo -e "${YELLOW}检测到 curl 缺失，正在安装...${RESET}"
+        check_system
+        if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+            sudo apt update && sudo apt install -y curl
+        elif [ "$SYSTEM" == "centos" ]; then
+            sudo yum install -y curl
+        elif [ "$SYSTEM" == "fedora" ]; then
+            sudo dnf install -y curl
         else
+            echo -e "${RED}无法识别系统，无法安装 curl。${RESET}"
+        fi
+        
+        # 检查是否安装成功
+        if command -v curl &> /dev/null; then
             echo -e "${GREEN}curl 安装成功！${RESET}"
+        else
+            echo -e "${RED}curl 安装失败，请手动检查问题！${RESET}"
         fi
     else
         echo -e "${YELLOW}curl 已经安装，跳过安装步骤。${RESET}"
     fi
 
+    # 安装 wget
     if ! command -v wget &> /dev/null; then
-        install_wget
-        if ! command -v wget &> /dev/null; then
-            echo -e "${RED}wget 安装失败，请手动检查问题！${RESET}"
+        echo -e "${YELLOW}检测到 wget 缺失，正在安装...${RESET}"
+        check_system
+        if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+            sudo apt update && sudo apt install -y wget
+        elif [ "$SYSTEM" == "centos" ]; then
+            sudo yum install -y wget
+        elif [ "$SYSTEM" == "fedora" ]; then
+            sudo dnf install -y wget
         else
+            echo -e "${RED}无法识别系统，无法安装 wget。${RESET}"
+        fi
+        
+        # 检查是否安装成功
+        if command -v wget &> /dev/null; then
             echo -e "${GREEN}wget 安装成功！${RESET}"
+        else
+            echo -e "${RED}wget 安装失败，请手动检查问题！${RESET}"
         fi
     else
         echo -e "${YELLOW}wget 已经安装，跳过安装步骤。${RESET}"
