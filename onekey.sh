@@ -97,6 +97,7 @@ echo -e "${YELLOW}14.服务器对服务器文件传输${RESET}"
 echo -e "${YELLOW}15.安装探针并绑定域名${RESET}"
 echo -e "${YELLOW}16.共用端口（反代）${RESET}"
 echo -e "${YELLOW}17.安装 curl 和 wget${RESET}"
+echo -e "${YELLOW}18.安装 Docker${RESET}"
 echo -e "${GREEN}=============================================${RESET}"
 
 read -p "请输入选项:" option
@@ -739,5 +740,33 @@ main() {
         echo -e "${YELLOW}wget 已经安装，跳过安装步骤。${RESET}"
     fi
     ;;
+18)
+            # 安装 Docker
+            echo -e "${GREEN}正在安装 Docker ...${RESET}"
+            if ! command -v docker &> /dev/null; then
+                echo -e "${YELLOW}检测到 Docker 缺失，正在安装...${RESET}"
+                check_system
+                if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+                    sudo apt update
+                    sudo apt install -y docker.io
+                elif [ "$SYSTEM" == "centos" ]; then
+                    sudo yum install -y docker
+                elif [ "$SYSTEM" == "fedora" ]; then
+                    sudo dnf install -y docker
+                else
+                    echo -e "${RED}无法识别系统，无法安装 Docker。${RESET}"
+                fi
+
+                # 检查是否安装成功
+                if command -v docker &> /dev/null; then
+                    echo -e "${GREEN}Docker 安装成功！${RESET}"
+                    sudo systemctl enable docker
+                    sudo systemctl start docker
+                else
+                    echo -e "${RED}Docker 安装失败，请手动检查问题！${RESET}"
+                fi
+            else
+                echo -e "${YELLOW}Docker 已经安装，跳过安装步骤。${RESET}"
+            fi
     
 esac
