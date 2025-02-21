@@ -838,7 +838,7 @@ main() {
         fi
         
         echo -e "${GREEN}----------------------------------------"
-        echo -e "${YELLOW}提示：尝试次数超过${MAX_ATTEMPTS}次的IP将被自动屏蔽${RESET}"
+        echo -e "${YELLOW}提示：尝试次数超过${MAX_ATTEMPTS}次的IP将被自动屏蔽（如没有被攻击则显示空或可打开/var/log/sshshield/sshshield.log查看）${RESET}"
     else
         # 未安装，进入安装流程
         echo -e "${GREEN}正在配置SSH防暴力破解防护系统...${RESET}"
