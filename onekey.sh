@@ -1289,8 +1289,26 @@ EOF"
                             # 卸载 Speedtest 测速面板
                             echo -e "${GREEN}正在卸载 Speedtest 测速面板...${RESET}"
                             cd /home/web || true
-                            docker-compose down -v || true
+                            if [ -f docker-compose.yml ]; then
+                                docker-compose down -v || true
+                                echo -e "${YELLOW}已停止并移除 Speedtest 测速面板容器和卷${RESET}"
+                            fi
+                            # 检查并移除任何名为 speedtest_panel 的容器
+                            if docker ps -a | grep -q "speedtest_panel"; then
+                                docker stop speedtest_panel || true
+                                docker rm speedtest_panel || true
+                                echo -e "${YELLOW}已移除独立的 speedtest_panel 容器${RESET}"
+                            fi
                             sudo rm -rf /home/web
+                            echo -e "${YELLOW}已删除 /home/web 目录${RESET}"
+                            # 询问是否移除 ALS 镜像
+                            if docker images | grep -q "wikihostinc/looking-glass-server"; then
+                                read -p "是否移除 Speedtest 测速面板的 Docker 镜像（wikihostinc/looking-glass-server）？（y/n，默认 n）： " remove_image
+                                if [ "$remove_image" == "y" ] || [ "$remove_image" == "Y" ]; then
+                                    docker rmi wikihostinc/looking-glass-server:latest || true
+                                    echo -e "${YELLOW}已移除 Speedtest 测速面板的 Docker 镜像${RESET}"
+                                fi
+                            fi
                             echo -e "${GREEN}Speedtest 测速面板卸载完成！${RESET}"
                             ;;
                         *)
