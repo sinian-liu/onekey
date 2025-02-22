@@ -153,6 +153,7 @@ show_menu() {
         echo -e "${YELLOW}17.安装 curl 和 wget${RESET}"
         echo -e "${YELLOW}18.安装 Docker${RESET}"
         echo -e "${YELLOW}19.SSH 防暴力破解检测${RESET}"
+        echo -e "${YELLOW}20.Speedtest测速面板${RESET}"
         echo -e "${GREEN}=============================================${RESET}"
 
         read -p "请输入选项 (输入 'q' 退出): " option
@@ -1144,6 +1145,159 @@ EOF"
                 echo -e "${YELLOW}提示：以上为疑似暴力破解的 IP 列表，未自动封禁。${RESET}"
                 echo -e "${YELLOW}检测配置：最大尝试次数=$MAX_ATTEMPTS，统计时间范围=$DETECT_TIME 分钟，高风险阈值=$HIGH_RISK_THRESHOLD，常规扫描=$SCAN_INTERVAL 分钟，高风险扫描=$SCAN_INTERVAL_HIGH 分钟${RESET}"
                 echo -e "${YELLOW}若需自动封禁或管理 IP，请使用选项 3 配置 Fail2Ban 或手动编辑 /etc/hosts.deny。${RESET}"
+                read -p "按回车键返回主菜单..."
+                ;;
+            20)
+                # Speedtest测速面板（基于 ALS - Another Looking-glass Server）
+                echo -e "${GREEN}正在准备处理 Speedtest 测速面板...${RESET}"
+
+                # 检查系统类型
+                check_system
+                if [ "$SYSTEM" == "unknown" ]; then
+                    echo -e "${RED}无法识别系统，无法继续操作！${RESET}"
+                    read -p "按回车键返回主菜单..."
+                else
+                    # 检测运行中的 Docker 服务
+                    echo -e "${YELLOW}正在检测运行中的 Docker 服务...${RESET}"
+                    DOCKER_RUNNING=false
+                    if command -v docker > /dev/null 2>&1 && systemctl is-active docker > /dev/null 2>&1; then
+                        DOCKER_RUNNING=true
+                        echo -e "${YELLOW}检测到 Docker 服务正在运行${RESET}"
+                        if docker ps -q | grep -q "."; then
+                            echo -e "${YELLOW}检测到运行中的 Docker 容器${RESET}"
+                        fi
+                    fi
+
+                    # 询问用户是否停止运行中的 Docker 服务
+                    if [ "$DOCKER_RUNNING" = true ] && docker ps -q | grep -q "."; then
+                        read -p "是否停止并移除运行中的 Docker 容器以继续安装？（y/n，默认 n）： " stop_containers
+                        if [ "$stop_containers" == "y" ] || [ "$stop_containers" == "Y" ]; then
+                            echo -e "${YELLOW}正在停止并移除运行中的 Docker 容器...${RESET}"
+                            docker stop $(docker ps -q) || true
+                            docker rm $(docker ps -aq) || true
+                        else
+                            echo -e "${RED}保留运行中的容器，可能导致安装冲突，建议手动清理后再试！${RESET}"
+                        fi
+                    fi
+
+                    # 提示用户选择操作
+                    echo -e "${YELLOW}请选择操作：${RESET}"
+                    echo "1) 安装 Speedtest 测速面板"
+                    echo "2) 卸载 Speedtest 测速面板"
+                    read -p "请输入选项（1 或 2）： " operation_choice
+
+                    case $operation_choice in
+                        1)
+                            # 安装 Speedtest 测速面板
+                            echo -e "${GREEN}正在安装 Speedtest 测速面板...${RESET}"
+
+                            # 检查端口占用并选择可用端口
+                            DEFAULT_PORT=80
+                            check_port() {
+                                local port=$1
+                                if netstat -tuln | grep ":$port" > /dev/null; then
+                                    return 1
+                                else
+                                    return 0
+                                fi
+                            }
+
+                            check_port "$DEFAULT_PORT"
+                            if [ $? -eq 1 ]; then
+                                echo -e "${RED}端口 $DEFAULT_PORT 已被占用！${RESET}"
+                                read -p "是否更换端口？（y/n，默认 y）： " change_port
+                                if [ "$change_port" != "n" ] && [ "$change_port" != "N" ]; then
+                                    while true; do
+                                        read -p "请输入新的端口号（例如 8080）： " new_port
+                                        while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                                            echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                                            read -p "请输入新的端口号（例如 8080）： " new_port
+                                        done
+                                        check_port "$new_port"
+                                        if [ $? -eq 0 ]; then
+                                            DEFAULT_PORT=$new_port
+                                            break
+                                        else
+                                            echo -e "${RED}端口 $new_port 已被占用，请选择其他端口！${RESET}"
+                                        fi
+                                    done
+                                else
+                                    echo -e "${RED}端口 $DEFAULT_PORT 被占用，无法继续安装！${RESET}"
+                                    read -p "按回车键返回主菜单..."
+                                    continue
+                                fi
+                            fi
+
+                            # 检查并放行防火墙端口
+                            if command -v ufw > /dev/null 2>&1; then
+                                ufw status | grep -q "Status: active"
+                                if [ $? -eq 0 ]; then
+                                    echo -e "${YELLOW}检测到 UFW 防火墙正在运行...${RESET}"
+                                    ufw status | grep -q "$DEFAULT_PORT"
+                                    if [ $? -ne 0 ]; then
+                                        echo -e "${YELLOW}正在放行端口 $DEFAULT_PORT...${RESET}"
+                                        sudo ufw allow "$DEFAULT_PORT/tcp"
+                                        sudo ufw reload
+                                    fi
+                                fi
+                            elif command -v iptables > /dev/null 2>&1; then
+                                echo -e "${YELLOW}检测到 iptables 防火墙...${RESET}"
+                                iptables -C INPUT -p tcp --dport "$DEFAULT_PORT" -j ACCEPT 2>/dev/null
+                                if [ $? -ne 0 ]; then
+                                    echo -e "${YELLOW}正在放行端口 $DEFAULT_PORT...${RESET}"
+                                    sudo iptables -A INPUT -p tcp --dport "$DEFAULT_PORT" -j ACCEPT
+                                    sudo iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+                                fi
+                            fi
+
+                            # 安装 Docker 和 Docker Compose
+                            if ! command -v docker > /dev/null 2>&1; then
+                                echo -e "${YELLOW}安装 Docker...${RESET}"
+                                curl -fsSL https://get.docker.com | sh
+                            fi
+                            if ! command -v docker-compose > /dev/null 2>&1; then
+                                echo -e "${YELLOW}安装 Docker Compose...${RESET}"
+                                curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                                chmod +x /usr/local/bin/docker-compose
+                            fi
+
+                            # 创建目录和配置 docker-compose.yml
+                            cd /home && mkdir -p web && touch web/docker-compose.yml
+                            sudo bash -c "cat > /home/web/docker-compose.yml <<EOF
+version: '3'
+services:
+  als:
+    image: wikihostinc/looking-glass-server:latest
+    container_name: speedtest_panel
+    ports:
+      - \"$DEFAULT_PORT:80\"
+    environment:
+      - HTTP_PORT=$DEFAULT_PORT
+    restart: always
+    network_mode: host
+EOF"
+
+                            # 启动 Docker Compose
+                            cd /home/web && docker-compose up -d
+
+                            server_ip=$(curl -s4 ifconfig.me)
+                            echo -e "${GREEN}Speedtest 测速面板安装完成！${RESET}"
+                            echo -e "${YELLOW}访问 http://$server_ip:$DEFAULT_PORT 查看 Speedtest 测速面板${RESET}"
+                            echo -e "${YELLOW}功能包括：HTML5 速度测试、Ping、iPerf3、Speedtest、下载测速、网卡流量监控、在线 Shell${RESET}"
+                            ;;
+                        2)
+                            # 卸载 Speedtest 测速面板
+                            echo -e "${GREEN}正在卸载 Speedtest 测速面板...${RESET}"
+                            cd /home/web || true
+                            docker-compose down -v || true
+                            sudo rm -rf /home/web
+                            echo -e "${GREEN}Speedtest 测速面板卸载完成！${RESET}"
+                            ;;
+                        *)
+                            echo -e "${RED}无效选项，请输入 1 或 2！${RESET}"
+                            ;;
+                    esac
+                fi
                 read -p "按回车键返回主菜单..."
                 ;;
         esac
