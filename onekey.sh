@@ -160,6 +160,7 @@ show_menu() {
         # 检查是否退出
         if [ "$option" = "q" ]; then
             echo -e "${GREEN}退出脚本，感谢使用！${RESET}"
+            echo -e "${GREEN}服务器推荐：https://my.frantech.ca/aff.php?aff=4337${RESET}"
             echo -e "${GREEN}VPS评测官方网站：https://www.1373737.xyz/${RESET}"
             exit 0
         fi
