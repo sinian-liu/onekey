@@ -386,23 +386,31 @@ show_menu() {
     # 服务器时区修改为中国时区
     echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
     
-    # 备份旧的时区文件
-    sudo mv /etc/localtime /etc/localtime.bak
-    
     # 设置时区为 Asia/Shanghai
-    sudo ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     
     # 重启 cron 服务
     if command -v systemctl &> /dev/null; then
-        sudo systemctl restart crond
+        # 尝试重启 cron 服务
+        if systemctl list-unit-files | grep -q cron.service; then
+            sudo systemctl restart cron
+        else
+            echo -e "${YELLOW}未找到 cron 服务，跳过重启。${RESET}"
+        fi
     else
-        sudo service crond restart
+        # 使用 service 命令重启 cron
+        if service --status-all | grep -q cron; then
+            sudo service cron restart
+        else
+            echo -e "${YELLOW}未找到 cron 服务，跳过重启。${RESET}"
+        fi
     fi
     
     # 显示当前时区和时间
     echo -e "${YELLOW}当前时区已设置为：$(timedatectl | grep "Time zone" | awk '{print $3}')${RESET}"
     echo -e "${YELLOW}当前时间：$(date)${RESET}"
     
+    # 按回车键返回主菜单
     read -p "按回车键返回主菜单..."
     ;;
             12)
