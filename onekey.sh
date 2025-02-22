@@ -383,12 +383,30 @@ show_menu() {
                 read -p "按回车键返回主菜单..."
                 ;;
             11)
-                # 服务器时区修改为中国时区
-                echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
-                sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-                sudo service cron restart
-                read -p "按回车键返回主菜单..."
-                ;;
+    # 服务器时区修改为中国时区
+    echo -e "${GREEN}正在修改服务器时区为中国时区 ...${RESET}"
+    
+    # 设置时区为 Asia/Shanghai
+    sudo timedatectl set-timezone Asia/Shanghai
+    
+    # 显示当前时区
+    echo -e "${YELLOW}当前时区已设置为：$(timedatectl | grep "Time zone" | awk '{print $3}')${RESET}"
+    
+    # 同步时间
+    echo -e "${YELLOW}正在同步时间...${RESET}"
+    if command -v chrony &> /dev/null; then
+        sudo chronyc -a makestep
+    elif command -v ntpdate &> /dev/null; then
+        sudo ntpdate pool.ntp.org
+    else
+        echo -e "${RED}未找到 chrony 或 ntpdate，请手动安装时间同步工具。${RESET}"
+    fi
+    
+    # 显示当前时间
+    echo -e "${YELLOW}当前时间：$(date)${RESET}"
+    
+    read -p "按回车键返回主菜单..."
+    ;;
             12)
                 # 长时间保持 SSH 会话连接不断开
                 echo -e "${GREEN}正在配置 SSH 保持连接...${RESET}"
