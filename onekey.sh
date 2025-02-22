@@ -394,12 +394,35 @@ show_menu() {
     
     # 同步时间
     echo -e "${YELLOW}正在同步时间...${RESET}"
+    
+    # 检查并安装时间同步工具
+    if ! command -v chrony &> /dev/null && ! command -v ntpdate &> /dev/null; then
+        echo -e "${YELLOW}未找到 chrony 或 ntpdate，正在安装 chrony ...${RESET}"
+        check_system
+        if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+            sudo apt update
+            sudo apt install -y chrony
+        elif [ "$SYSTEM" == "centos" ]; then
+            sudo yum install -y chrony
+        elif [ "$SYSTEM" == "fedora" ]; then
+            sudo dnf install -y chrony
+        else
+            echo -e "${RED}无法识别系统，请手动安装时间同步工具（如 chrony 或 ntpdate）。${RESET}"
+            read -p "按回车键返回主菜单..."
+            return
+        fi
+    fi
+
+    # 同步时间
     if command -v chrony &> /dev/null; then
+        sudo systemctl restart chrony
         sudo chronyc -a makestep
     elif command -v ntpdate &> /dev/null; then
         sudo ntpdate pool.ntp.org
     else
-        echo -e "${RED}未找到 chrony 或 ntpdate，请手动安装时间同步工具。${RESET}"
+        echo -e "${RED}时间同步工具安装失败，请手动检查问题！${RESET}"
+        read -p "按回车键返回主菜单..."
+        return
     fi
     
     # 显示当前时间
