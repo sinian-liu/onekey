@@ -26,7 +26,8 @@
 18. 安装 Docker
 19. SSH 防暴力破解检测
 20. Speedtest测速面板
-21. 
+21. WordPress 安装（基于 Docker）
+22. 
 请输入选项:
 
 ### 快捷启动命令：s
