@@ -154,6 +154,7 @@ show_menu() {
         echo -e "${YELLOW}18.安装 Docker${RESET}"
         echo -e "${YELLOW}19.SSH 防暴力破解检测${RESET}"
         echo -e "${YELLOW}20.Speedtest测速面板${RESET}"
+        echo -e "${YELLOW}21.WordPress 安装（基于 Docker）${RESET}"  
         echo -e "${GREEN}=============================================${RESET}"
 
         read -p "请输入选项 (输入 'q' 退出): " option
