@@ -138,7 +138,7 @@ show_menu() {
         echo -e "${YELLOW}2. 安装BBR${RESET}"
         echo -e "${YELLOW}3. 安装v2ray${RESET}"
         echo -e "${YELLOW}4. 安装无人直播云SRS${RESET}"
-        echo -e "${YELLOW}5. 面板安装（宝塔/1panel）${RESET}"
+        echo -e "${YELLOW}5. 面板安装（1panel/宝塔/青龙）${RESET}"
         echo -e "${YELLOW}6. 系统更新${RESET}"
         echo -e "${YELLOW}7. 修改密码${RESET}"
         echo -e "${YELLOW}8. 重启服务器${RESET}"
