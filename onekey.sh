@@ -138,7 +138,7 @@ show_menu() {
         echo -e "${YELLOW}2. 安装BBR${RESET}"
         echo -e "${YELLOW}3. 安装v2ray${RESET}"
         echo -e "${YELLOW}4. 安装无人直播云SRS${RESET}"
-        echo -e "${YELLOW}5. 安装宝塔纯净版${RESET}"
+        echo -e "${YELLOW}5. 面板安装（宝塔/1panel）${RESET}"
         echo -e "${YELLOW}6. 系统更新${RESET}"
         echo -e "${YELLOW}7. 修改密码${RESET}"
         echo -e "${YELLOW}8. 重启服务器${RESET}"
@@ -260,35 +260,149 @@ show_menu() {
                 fi
                 read -p "按回车键返回主菜单..."
                 ;;
-            5)
-                # 宝塔纯净版安装
-                echo -e "${GREEN}正在安装宝塔面板...${RESET}"
-                if [ -f /etc/lsb-release ]; then
-                    wget -O /tmp/install.sh https://install.baota.sbs/install/install_6.0.sh
-                    if [ $? -eq 0 ]; then
-                        bash /tmp/install.sh
-                        rm -f /tmp/install.sh
+5)
+    # 面板管理子菜单
+    panel_management() {
+        while true; do
+            echo -e "${GREEN}=== 面板管理 ===${RESET}"
+            echo -e "${YELLOW}请选择操作：${RESET}"
+            echo "1) 安装1Panel面板"
+            echo "2) 安装宝塔纯净版"
+            echo "3) 安装宝塔国际版"
+            echo "4) 安装宝塔国内版"
+            echo "5) 卸载1Panel面板"
+            echo "6) 卸载宝塔面板（纯净版/国际版/国内版）"
+            echo "7) 一键卸载所有面板"
+            echo "0) 返回主菜单"
+            read -p "请输入选项：" panel_choice
+
+            case $panel_choice in
+                1)
+                    # 安装1Panel面板
+                    echo -e "${GREEN}正在安装1Panel面板...${RESET}"
+                    check_system
+                    case $SYSTEM in
+                        ubuntu)
+                            curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh && sudo bash quick_start.sh
+                            ;;
+                        debian|centos)
+                            curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh && bash quick_start.sh
+                            ;;
+                        *)
+                            echo -e "${RED}不支持的系统类型！${RESET}"
+                            ;;
+                    esac
+                    read -p "安装完成，按回车键返回上一级..."
+                    ;;
+
+                2)
+                    # 安装宝塔纯净版
+                    echo -e "${GREEN}正在安装宝塔纯净版...${RESET}"
+                    check_system
+                    if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+                        wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && bash install.sh
+                    elif [ "$SYSTEM" == "centos" ]; then
+                        yum install -y wget && wget -O install.sh https://install.baota.sbs/install/install_6.0.sh && sh install.sh
                     else
-                        echo -e "${RED}下载宝塔安装脚本失败，请检查网络！${RESET}"
+                        echo -e "${RED}不支持的系统类型！${RESET}"
                     fi
-                elif [ -f /etc/redhat-release ]; then
-                    yum install -y wget
-                    if [ $? -eq 0 ]; then
-                        wget -O /tmp/install.sh https://install.baota.sbs/install/install_6.0.sh
-                        if [ $? -eq 0 ]; then
-                            sh /tmp/install.sh
-                            rm -f /tmp/install.sh
+                    read -p "安装完成，按回车键返回上一级..."
+                    ;;
+
+                3)
+                    # 安装宝塔国际版
+                    echo -e "${GREEN}正在安装宝塔国际版...${RESET}"
+                    URL="https://www.aapanel.com/script/install_7.0_en.sh"
+                    if [ -f /usr/bin/curl ]; then
+                        curl -ksSO "$URL"
+                    else
+                        wget --no-check-certificate -O install_7.0_en.sh "$URL"
+                    fi
+                    bash install_7.0_en.sh aapanel
+                    read -p "安装完成，按回车键返回上一级..."
+                    ;;
+
+                4)
+                    # 安装宝塔国内版
+                    echo -e "${GREEN}正在安装宝塔国内版...${RESET}"
+                    if [ -f /usr/bin/curl ]; then
+                        curl -sSO https://download.bt.cn/install/install_panel.sh
+                    else
+                        wget -O install_panel.sh https://download.bt.cn/install/install_panel.sh
+                    fi
+                    bash install_panel.sh ed8484bec
+                    read -p "安装完成，按回车键返回上一级..."
+                    ;;
+
+                5)
+                    # 卸载1Panel面板
+                    echo -e "${GREEN}正在卸载1Panel面板...${RESET}"
+                    if command -v 1pctl > /dev/null 2>&1; then
+                        1pctl uninstall
+                        echo -e "${YELLOW}1Panel面板已卸载${RESET}"
+                    else
+                        echo -e "${RED}未检测到1Panel面板安装！${RESET}"
+                    fi
+                    read -p "按回车键返回上一级..."
+                    ;;
+
+                6)
+                    # 卸载宝塔面板
+                    echo -e "${GREEN}正在卸载宝塔面板...${RESET}"
+                    if [ -f /usr/bin/bt ] || [ -f /usr/bin/aapanel ]; then
+                        wget http://download.bt.cn/install/bt-uninstall.sh
+                        if [ "$SYSTEM" == "ubuntu" ]; then
+                            sudo sh bt-uninstall.sh
                         else
-                            echo -e "${RED}下载宝塔安装脚本失败，请检查网络！${RESET}"
+                            sh bt-uninstall.sh
                         fi
+                        echo -e "${YELLOW}宝塔面板已卸载${RESET}"
                     else
-                        echo -e "${RED}wget 安装失败，无法下载宝塔脚本！${RESET}"
+                        echo -e "${RED}未检测到宝塔面板安装！${RESET}"
                     fi
-                else
-                    echo -e "${RED}无法识别您的操作系统，无法安装宝塔面板。${RESET}"
-                fi
-                read -p "按回车键返回主菜单..."
-                ;;
+                    read -p "按回车键返回上一级..."
+                    ;;
+
+                7)
+                    # 一键卸载所有面板
+                    echo -e "${GREEN}正在卸载所有面板...${RESET}"
+                    # 卸载1Panel
+                    if command -v 1pctl > /dev/null 2>&1; then
+                        1pctl uninstall
+                        echo -e "${YELLOW}1Panel面板已卸载${RESET}"
+                    else
+                        echo -e "${RED}未检测到1Panel面板安装！${RESET}"
+                    fi
+                    # 卸载宝塔
+                    if [ -f /usr/bin/bt ] || [ -f /usr/bin/aapanel ]; then
+                        wget http://download.bt.cn/install/bt-uninstall.sh
+                        if [ "$SYSTEM" == "ubuntu" ]; then
+                            sudo sh bt-uninstall.sh
+                        else
+                            sh bt-uninstall.sh
+                        fi
+                        echo -e "${YELLOW}宝塔面板已卸载${RESET}"
+                    else
+                        echo -e "${RED}未检测到宝塔面板安装！${RESET}"
+                    fi
+                    read -p "按回车键返回上一级..."
+                    ;;
+
+                0)
+                    break  # 返回主菜单
+                    ;;
+
+                *)
+                    echo -e "${RED}无效选项，请重新输入！${RESET}"
+                    read -p "按回车键继续..."
+                    ;;
+            esac
+        done
+    }
+
+    # 进入面板管理子菜单
+    panel_management
+    ;;
             6)
                 # 系统更新命令
                 echo -e "${GREEN}正在更新系统...${RESET}"
