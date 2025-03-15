@@ -1050,7 +1050,7 @@ EOF
                 fi
                 read -p "按回车键返回主菜单..."
                 ;;
-            18)
+18)
     # Docker 管理子菜单
     echo -e "${GREEN}正在进入 Docker 管理子菜单...${RESET}"
 
@@ -1066,6 +1066,9 @@ while true; do
     echo "7) 删除 Docker 容器"
     echo "8) 删除 Docker 镜像"
     echo "9) 安装 sun-panel"
+    echo "10) 拉取镜像并安装容器"
+    echo "11) 更新镜像并重启容器"
+    echo "12) 批量操作容器"
     echo "0) 返回主菜单"
     read -p "请输入选项：" docker_choice
 
@@ -1297,6 +1300,11 @@ EOF
         if ! check_docker_status; then return; fi
 
         echo -e "${YELLOW}已停止的容器：${RESET}"
+        container_list=$(docker ps -a --filter "status=exited" -q)
+        if [ -z "$container_list" ]; then
+            echo -e "${YELLOW}没有已停止的容器！${RESET}"
+            return
+        fi
         docker ps -a --filter "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}" | sed 's/CONTAINER ID/容器ID/; s/IMAGE/镜像名称/; s/NAMES/容器名称/'
         read -p "请输入要启动的容器ID： " container_id
         if docker start "$container_id" &> /dev/null; then
@@ -1377,73 +1385,428 @@ EOF
     }
 
     # 安装 sun-panel
-install_sun_panel() {
-    echo -e "${GREEN}正在安装 sun-panel...${RESET}"
+    install_sun_panel() {
+        echo -e "${GREEN}正在安装 sun-panel...${RESET}"
 
-    # 端口处理
+        # 端口处理
+        while true; do
+            read -p "请输入要使用的端口号（默认 3002）： " sun_port
+            sun_port=${sun_port:-3002}
+            
+            # 验证端口格式
+            if ! [[ "$sun_port" =~ ^[0-9]+$ ]] || [ "$sun_port" -lt 1 ] || [ "$sun_port" -gt 65535 ]; then
+                echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                continue
+            fi
+
+            # 检查端口占用
+            if ss -tuln | grep -q ":${sun_port} "; then
+                echo -e "${RED}端口 ${sun_port} 已被占用，请选择其他端口！${RESET}"
+            else
+                break
+            fi
+        done
+
+        # 处理防火墙
+        open_port() {
+            if command -v ufw > /dev/null 2>&1; then
+                if ! ufw status | grep -q "${sun_port}/tcp"; then
+                    echo -e "${YELLOW}正在放行端口 ${sun_port}..."
+                    sudo ufw allow "${sun_port}/tcp"
+                    sudo ufw reload
+                fi
+            elif command -v firewall-cmd > /dev/null 2>&1; then
+                if ! firewall-cmd --list-ports | grep -q "${sun_port}/tcp"; then
+                    echo -e "${YELLOW}正在放行端口 ${sun_port}..."
+                    sudo firewall-cmd --permanent --add-port=${sun_port}/tcp
+                    sudo firewall-cmd --reload
+                fi
+            else
+                echo -e "${YELLOW}未检测到防火墙工具，请手动放行端口 ${sun_port}"
+            fi
+        }
+        open_port
+
+        # 拉取最新镜像并运行
+        docker pull hslr/sun-panel:latest && \
+        docker run -d \
+            --name sun-panel \
+            --restart always \
+            -p ${sun_port}:3002 \
+            -v /home/sun-panel/data:/app/data \
+            -v /home/sun-panel/config:/app/config \
+            -e SUNPANEL_ADMIN_USER="admin@sun.cc" \
+            -e SUNPANEL_ADMIN_PASS="12345678" \
+            hslr/sun-panel:latest
+
+        # 显示安装结果
+        if [ $? -eq 0 ]; then
+            server_ip=$(curl -s4 ifconfig.me)
+            echo -e "${GREEN}------------------------------------------------------"
+            echo -e " sun-panel 安装成功！"
+            echo -e " 访问地址：http://${server_ip}:${sun_port}"
+            echo -e " 管理员账号：admin@sun.cc"
+            echo -e " 管理员密码：12345678"
+            echo -e "------------------------------------------------------${RESET}"
+        else
+            echo -e "${RED}sun-panel 安装失败，请检查日志！${RESET}"
+        fi
+    }
+
+# 选项10：拉取镜像并安装容器（增强版 - 支持手动拉取）
+install_image_container() {
+    if ! check_docker_status; then return; fi
+
+    # 获取镜像名称
     while true; do
-        read -p "请输入要使用的端口号（默认 3002）： " sun_port
-        sun_port=${sun_port:-3002}
-        
-        # 验证端口格式
-        if ! [[ "$sun_port" =~ ^[0-9]+$ ]] || [ "$sun_port" -lt 1 ] || [ "$sun_port" -gt 65535 ]; then
-            echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+        read -p "请输入镜像名称（示例：nginx:latest 或 localhost:5000/nginx:v1）： " image_name
+        if [[ -z "$image_name" ]]; then
+            echo -e "${RED}镜像名称不能为空！${RESET}"
             continue
         fi
-
-        # 检查端口占用
-        if ss -tuln | grep -q ":${sun_port} "; then
-            echo -e "${RED}端口 ${sun_port} 已被占用，请选择其他端口！${RESET}"
-        else
-            break
-        fi
+        break
     done
 
-    # 处理防火墙
-    open_port() {
-        if command -v ufw > /dev/null 2>&1; then
-            if ! ufw status | grep -q "${sun_port}/tcp"; then
-                echo -e "${YELLOW}正在放行端口 ${sun_port}..."
-                sudo ufw allow "${sun_port}/tcp"
-                sudo ufw reload
+    # 拉取镜像
+    echo -e "${GREEN}正在拉取镜像 ${image_name}...${RESET}"
+    if ! docker pull "$image_name"; then
+        echo -e "${RED}镜像拉取失败！请检查：\n1. 镜像名称是否正确\n2. 网络连接是否正常\n3. 私有仓库是否需要 docker login${RESET}"
+        # 提示用户手动输入 docker pull 命令
+        read -p "${YELLOW}是否手动输入 docker pull 命令尝试拉取？（y/N，默认 N）：${RESET} " manual_pull_choice
+        if [[ "${manual_pull_choice:-N}" =~ [Yy] ]]; then
+            read -p "请输入完整的 docker pull 命令（示例：docker pull eyeblue/tank）： " manual_pull_cmd
+            if [[ -z "$manual_pull_cmd" ]]; then
+                echo -e "${RED}命令不能为空！返回主菜单...${RESET}"
+                return
             fi
-        elif command -v firewall-cmd > /dev/null 2>&1; then
-            if ! firewall-cmd --list-ports | grep -q "${sun_port}/tcp"; then
-                echo -e "${YELLOW}正在放行端口 ${sun_port}..."
-                sudo firewall-cmd --permanent --add-port=${sun_port}/tcp
-                sudo firewall-cmd --reload
+            echo -e "${GREEN}正在执行手动拉取命令：${manual_pull_cmd}${RESET}"
+            # 执行用户输入的命令
+            if ! $manual_pull_cmd; then
+                echo -e "${RED}手动拉取失败！请检查命令或网络，返回主菜单...${RESET}"
+                return
             fi
+            # 手动拉取成功后，重新设置 image_name 为拉取的镜像名称
+            image_name=$(echo "$manual_pull_cmd" | awk '{print $NF}')
+            echo -e "${GREEN}手动拉取成功！镜像名称更新为：${image_name}${RESET}"
         else
-            echo -e "${YELLOW}未检测到防火墙工具，请手动放行端口 ${sun_port}"
+            echo -e "${YELLOW}取消手动拉取，返回主菜单...${RESET}"
+            return
         fi
+    fi
+
+    # 获取系统占用端口
+    echo -e "${YELLOW}当前系统占用的端口：${RESET}"
+    used_host_ports=($(ss -tuln | awk '{print $5}' | cut -d':' -f2 | grep -E '^[0-9]+$' | sort -un))
+    for port in "${used_host_ports[@]}"; do
+        echo -e "  - 端口 ${port}"
+    done
+
+    # 自动检测镜像端口
+    exposed_ports=()
+
+    # 1. 元数据检测
+    port_info=$(docker inspect --format='{{json .Config.ExposedPorts}}' "$image_name" 2>/dev/null)
+    if [ $? -eq 0 ] && [ "$port_info" != "null" ]; then
+        eval "declare -A ports=${port_info}"
+        for port in "${!ports[@]}"; do
+            port_num="${port%/*}"
+            if [ "$port_num" -ge 1 ] && [ "$port_num" -le 65535 ]; then
+                echo -e "${YELLOW}[元数据检测] 发现端口 ${port_num}${RESET}"
+                exposed_ports+=("$port_num")
+            fi
+        done
+    fi
+
+    # 2. 运行时检测
+    temp_container_id=$(docker run -d --rm "$image_name" tail -f /dev/null 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        echo -e "${YELLOW}正在检测容器端口，请稍候（可能需要 30 秒）...${RESET}"
+        sleep 30
+        runtime_ports=$(docker exec "$temp_container_id" sh -c "
+            if command -v ss >/dev/null; then
+                ss -tuln | awk '{print \$5}' | cut -d':' -f2 | grep -E '^[0-9]+$' | sort -un
+            elif command -v netstat >/dev/null; then
+                netstat -tuln | awk '/^tcp|udp/ {print \$4}' | cut -d':' -f2 | grep -E '^[0-9]+$' | sort -un
+            fi" 2>/dev/null)
+        for port in $runtime_ports; do
+            if [ "$port" -ge 1 ] && [ "$port" -le 65535 ] && [[ ! " ${exposed_ports[@]} " =~ " ${port} " ]]; then
+                echo -e "${YELLOW}[运行时检测] 发现端口 ${port}${RESET}"
+                exposed_ports+=("$port")
+            fi
+        done
+        docker stop "$temp_container_id" >/dev/null 2>&1
+    fi
+
+    # 3. 日志检测
+    if [ ${#exposed_ports[@]} -eq 0 ]; then
+        temp_container_id=$(docker run -d --rm "$image_name" 2>/dev/null)
+        if [ $? -eq 0 ]; then
+            echo -e "${YELLOW}正在通过日志检测端口，请稍候（可能需要 30 秒）...${RESET}"
+            sleep 30
+            log_output=$(docker logs "$temp_container_id" 2>/dev/null)
+            docker stop "$temp_container_id" >/dev/null 2>&1
+            log_ports=$(echo "$log_output" | grep -oP '(http|https)://[^:]*:\K[0-9]+|listen\s+\K[0-9]+|port\s+\K[0-9]+' | sort -un)
+            for port in $log_ports; do
+                if [ "$port" -ge 1 ] && [ "$port" -le 65535 ] && [[ ! " ${exposed_ports[@]} " =~ " ${port} " ]]; then
+                    echo -e "${YELLOW}[日志检测] 发现端口 ${port}${RESET}"
+                    exposed_ports+=("$port")
+                fi
+            done
+            # 推测常见镜像的默认端口
+            if [ ${#exposed_ports[@]} -eq 0 ]; then
+                if [[ "$image_name" =~ "jellyfin" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 Jellyfin 镜像，默认端口 8096${RESET}"
+                    exposed_ports+=("8096")
+                elif [[ "$image_name" =~ "nginx" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 Nginx 镜像，默认端口 80${RESET}"
+                    exposed_ports+=("80")
+                elif [[ "$image_name" =~ "mysql" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 MySQL 镜像，默认端口 3306${RESET}"
+                    exposed_ports+=("3306")
+                elif [[ "$image_name" =~ "postgres" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 PostgreSQL 镜像，默认端口 5432${RESET}"
+                    exposed_ports+=("5432")
+                elif [[ "$image_name" =~ "redis" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 Redis 镜像，默认端口 6379${RESET}"
+                    exposed_ports+=("6379")
+                elif [[ "$image_name" =~ "gdy666/lucky" ]]; then
+                    echo -e "${YELLOW}[推测] 检测到 Lucky 镜像，默认端口 16601${RESET}"
+                    exposed_ports+=("16601")
+                fi
+            fi
+        fi
+    fi
+
+    # 如果仍未检测到有效端口，提示用户从常见端口选择
+    common_ports=(80 443 8080 8096 9000 16601 3306 5432 6379)
+    if [ ${#exposed_ports[@]} -eq 0 ]; then
+        echo -e "${YELLOW}未检测到有效暴露端口，请从以下常见端口选择：${RESET}"
+        for i in "${!common_ports[@]}"; do
+            echo -e "  ${i}. ${common_ports[$i]}"
+        done
+        while true; do
+            read -p "请输入容器端口编号（0-8，默认 0 即 80）： " port_choice
+            port_choice=${port_choice:-0}
+            if ! [[ "$port_choice" =~ ^[0-8]$ ]]; then
+                echo -e "${RED}无效选择，请输入 0-8 之间的数字！${RESET}"
+                continue
+            fi
+            exposed_ports+=("${common_ports[$port_choice]}")
+            echo -e "${GREEN}选择容器端口 ${exposed_ports[0]}${RESET}"
+            break
+        done
+    fi
+
+    # 智能端口映射
+    port_mappings=()
+    port_mapping_display=()
+
+    for port in "${exposed_ports[@]}"; do
+        recommended_port=$port
+        while [[ " ${used_host_ports[@]} " =~ " ${recommended_port} " ]]; do
+            recommended_port=$((recommended_port + 1))
+            if [ "$recommended_port" -gt 65535 ]; then
+                recommended_port=8080
+            fi
+        done
+
+        while true; do
+            read -p "映射容器端口 ${port} 到宿主机端口（默认 ${recommended_port}，回车使用默认）： " host_port
+            host_port=${host_port:-$recommended_port}
+
+            if ! [[ "$host_port" =~ ^[0-9]+$ ]] || [ "$host_port" -lt 1 ] || [ "$host_port" -gt 65535 ]; then
+                echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                continue
+            fi
+
+            if [[ " ${used_host_ports[@]} " =~ " ${host_port} " ]]; then
+                echo -e "${RED}端口 ${host_port} 已占用！建议更换端口：${RESET}"
+                ss -tulpn | grep ":$host_port"
+                read -p "更换端口？(y/N，默认 y)： " change_port
+                if [[ "${change_port:-y}" =~ [Yy] ]]; then
+                    continue
+                fi
+            fi
+
+            port_mappings+=("-p" "${host_port}:${port}")
+            port_mapping_display+=("${port} -> ${host_port}")
+            used_host_ports+=("$host_port")
+            echo -e "${GREEN}端口映射：容器端口 ${port} -> 宿主机端口 ${host_port}${RESET}"
+            break
+        done
+    done
+
+    # 数据路径设置
+    default_data_path="/root/docker/home"
+    read -p "请输入容器数据路径（默认：${default_data_path}，回车使用默认）： " data_path
+    data_path=${data_path:-$default_data_path}
+    if [ ! -d "$data_path" ]; then
+        echo -e "${YELLOW}创建数据目录：$data_path${RESET}"
+        if ! mkdir -p "$data_path" 2>/dev/null && ! sudo mkdir -p "$data_path"; then
+            echo -e "${RED}目录创建失败，请检查权限或手动创建：sudo mkdir -p '$data_path'${RESET}"
+            return
+        fi
+    fi
+
+    # 防火墙处理
+    open_port() {
+        for ((i=0; i<${#port_mappings[@]}; i+=2)); do
+            if [[ "${port_mappings[$i]}" == "-p" && "${port_mappings[$i+1]}" =~ ^[0-9]+:[0-9]+$ ]]; then
+                host_port=$(echo "${port_mappings[$i+1]}" | cut -d':' -f1)
+                echo -e "${YELLOW}处理防火墙，放行端口 ${host_port}...${RESET}"
+                if command -v ufw >/dev/null 2>&1; then
+                    if ! ufw status | grep -q "${host_port}/tcp"; then
+                        sudo ufw allow "${host_port}/tcp" && sudo ufw reload
+                    fi
+                elif command -v firewall-cmd >/dev/null 2>&1; then
+                    if ! firewall-cmd --list-ports | grep -qw "${host_port}/tcp"; then
+                        sudo firewall-cmd --permanent --add-port="${host_port}/tcp"
+                        sudo firewall-cmd --reload
+                    fi
+                else
+                    echo -e "${YELLOW}未检测到防火墙工具，请手动放行端口 ${host_port}${RESET}"
+                fi
+            fi
+        done
     }
     open_port
 
-    # 拉取最新镜像并运行
-    docker pull hslr/sun-panel:latest && \
-    docker run -d \
-        --name sun-panel \
-        --restart always \
-        -p ${sun_port}:3002 \
-        -v /home/sun-panel/data:/app/data \
-        -v /home/sun-panel/config:/app/config \
-        -e SUNPANEL_ADMIN_USER="admin@sun.cc" \
-        -e SUNPANEL_ADMIN_PASS="12345678" \
-        hslr/sun-panel:latest
+    # 生成容器名称并启动
+    container_name="$(echo "$image_name" | tr '/:' '_')_$(date +%s)"
+    echo -e "${GREEN}正在启动容器...${RESET}"
+    docker_run_cmd=(
+        docker run -d
+        --name "$container_name"
+        --restart unless-stopped
+        "${port_mappings[@]}"
+        -v "${data_path}:/app/data"
+        "$image_name"
+    )
 
-    # 显示安装结果
-    if [ $? -eq 0 ]; then
-        server_ip=$(curl -s4 ifconfig.me)
-        echo -e "${GREEN}------------------------------------------------------"
-        echo -e " sun-panel 安装成功！"
-        echo -e " 访问地址：http://${server_ip}:${sun_port}"
-        echo -e " 管理员账号：admin@sun.cc"
-        echo -e " 管理员密码：12345678"
-        echo -e "------------------------------------------------------${RESET}"
+    # 捕获详细错误输出
+    if ! output=$("${docker_run_cmd[@]}" 2>&1); then
+        echo -e "${RED}容器启动失败！错误信息：${RESET}"
+        echo "$output"
+        echo -e "${RED}可能原因：${RESET}"
+        echo -e "1. 端口配置错误（选择的容器端口可能不正确）"
+        echo -e "2. 镜像需要特定启动参数（请查看镜像文档，如 -p 端口或 -e 环境变量）"
+        echo -e "3. 权限或资源问题"
+        echo -e "调试命令：${docker_run_cmd[*]}"
     else
-        echo -e "${RED}sun-panel 安装失败，请检查日志！${RESET}"
+        sleep 5
+        if ! docker ps | grep -q "$container_name"; then
+            echo -e "${RED}容器启动后异常退出，请查看日志：${RESET}"
+            docker logs "$container_name"
+            return
+        fi
+
+        # 验证端口监听
+        for mapping in "${port_mapping_display[@]}"; do
+            container_port=$(echo "$mapping" | cut -d' ' -f1)
+            temp_check=$(docker exec "$container_name" sh -c "
+                if command -v ss >/dev/null; then
+                    ss -tuln | grep -q ':${container_port}' && echo 'found'
+                elif command -v netstat >/dev/null; then
+                    netstat -tuln | grep -q ':${container_port}' && echo 'found'
+                fi" 2>/dev/null)
+            if [ "$temp_check" != "found" ]; then
+                echo -e "${RED}警告：容器未监听端口 ${container_port}，映射可能无效！${RESET}"
+                echo -e "${YELLOW}建议查看日志或重新选择容器端口：docker logs $container_name${RESET}"
+            fi
+        done
+
+        # 获取网络信息
+        server_ip=$(hostname -I | awk '{print $1}')
+        public_ip=$(curl -s4 icanhazip.com || curl -s6 icanhazip.com || echo "N/A")
+
+        # 输出访问信息
+        echo -e "${GREEN}------------------------------------------------------"
+        echo -e " 容器名称：$container_name"
+        echo -e " 镜像名称：$image_name"
+        echo -e " 端口映射（容器内 -> 宿主机）："
+        for mapping in "${port_mapping_display[@]}"; do
+            echo -e "    - ${mapping}"
+        done
+        [ "$public_ip" != "N/A" ] && echo -e " 公网访问："
+        for mapping in "${port_mapping_display[@]}"; do
+            host_port=$(echo "$mapping" | cut -d' ' -f3)
+            [ "$public_ip" != "N/A" ] && echo -e "   - http://${public_ip}:${host_port}"
+            echo -e "  内网访问：http://${server_ip}:${host_port}"
+        done
+        echo -e " 数据路径：$data_path"
+        echo -e "------------------------------------------------------${RESET}"
+
+        # 诊断命令
+        echo -e "${YELLOW}诊断命令：${RESET}"
+        echo -e "查看日志：docker logs $container_name"
+        echo -e "进入容器：docker exec -it $container_name sh"
+        echo -e "停止容器：docker stop $container_name"
+        echo -e "删除容器：docker rm -f $container_name"
     fi
 }
+
+    # 选项11：更新镜像并重启容器
+    update_image_restart() {
+        if ! check_docker_status; then return; fi
+
+        # 获取镜像名称
+        read -p "请输入要更新的镜像名称（例如：nginx:latest）：" image_name
+        if [[ -z "$image_name" ]]; then
+            echo -e "${RED}镜像名称不能为空！${RESET}"
+            return
+        fi
+
+        # 拉取最新镜像
+        echo -e "${GREEN}正在更新镜像：${image_name}...${RESET}"
+        if ! docker pull "$image_name"; then
+            echo -e "${RED}镜像更新失败！请检查：\n1. 镜像名称是否正确\n2. 网络连接是否正常${RESET}"
+            return
+        fi
+
+        # 查找关联容器
+        container_ids=$(docker ps -a --filter "ancestor=$image_name" --format "{{.ID}}")
+        if [ -z "$container_ids" ]; then
+            echo -e "${YELLOW}没有找到使用该镜像的容器${RESET}"
+            return
+        fi
+
+        # 重启容器
+        echo -e "${YELLOW}正在重启以下容器：${RESET}"
+        docker ps -a --filter "ancestor=$image_name" --format "table {{.ID}}\t{{.Names}}\t{{.Image}}"
+        for cid in $container_ids; do
+            echo -n "重启容器 $cid ... "
+            docker restart "$cid" && echo "成功" || echo "失败"
+        done
+    }
+
+    # 选项12：批量操作容器
+    batch_operations() {
+        if ! check_docker_status; then return; fi
+
+        echo -e "${GREEN}=== 批量操作 ===${RESET}"
+        echo "1) 停止所有容器"
+        echo "2) 删除所有容器"
+        echo "3) 删除所有镜像"
+        read -p "请选择操作类型：" batch_choice
+
+        case $batch_choice in
+            1)
+                read -p "确定要停止所有容器吗？(y/n)：" confirm
+                [[ "$confirm" == "y" ]] && docker stop $(docker ps -q)
+                ;;
+            2)
+                read -p "确定要删除所有容器吗？(y/n)：" confirm
+                [[ "$confirm" == "y" ]] && docker rm -f $(docker ps -aq)
+                ;;
+            3)
+                read -p "确定要删除所有镜像吗？(y/n)：" confirm
+                [[ "$confirm" == "y" ]] && docker rmi -f $(docker images -q)
+                ;;
+            *)
+                echo -e "${RED}无效选项！${RESET}"
+                ;;
+        esac
+    }
 
     case $docker_choice in
         1) install_docker ;;
@@ -1455,6 +1818,9 @@ install_sun_panel() {
         7) delete_container ;;
         8) delete_image ;;
         9) install_sun_panel ;;
+        10) install_image_container ;;
+        11) update_image_restart ;;
+        12) batch_operations ;;
         0) break ;;
         *) echo -e "${RED}无效选项！${RESET}" ;;
     esac
