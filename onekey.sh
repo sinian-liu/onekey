@@ -155,6 +155,7 @@ show_menu() {
         echo -e "${YELLOW}19.SSH 防暴力破解检测${RESET}"
         echo -e "${YELLOW}20.Speedtest测速面板${RESET}"
         echo -e "${YELLOW}21.WordPress 安装（基于 Docker）${RESET}"  
+        echo -e "${YELLOW}22.网心云安装${RESET}" 
         echo -e "${GREEN}=============================================${RESET}"
 
         read -p "请输入选项 (输入 'q' 退出): " option
@@ -3879,6 +3880,152 @@ EOF"
                             ;;
                     esac
                 fi
+                ;;
+                22)
+                # 网心云安装
+                echo -e "${GREEN}正在安装网心云...${RESET}"
+
+                # 检查Docker是否安装
+                if command -v docker &> /dev/null; then
+                    echo -e "${YELLOW}Docker 已安装，跳过安装步骤。${RESET}"
+                else
+                    echo -e "${YELLOW}检测到 Docker 未安装，正在安装...${RESET}"
+                    check_system
+                    if [ "$SYSTEM" == "ubuntu" ] || [ "$SYSTEM" == "debian" ]; then
+                        sudo apt update
+                        sudo apt install -y docker.io
+                    elif [ "$SYSTEM" == "centos" ]; then
+                        sudo yum install -y docker
+                        sudo systemctl enable docker
+                        sudo systemctl start docker
+                    elif [ "$SYSTEM" == "fedora" ]; then
+                        sudo dnf install -y docker
+                        sudo systemctl enable docker
+                        sudo systemctl start docker
+                    else
+                        echo -e "${RED}无法识别系统，无法安装 Docker！${RESET}"
+                        read -p "按回车键返回主菜单..."
+                        continue
+                    fi
+                    if [ $? -ne 0 ]; then
+                        echo -e "${RED}Docker 安装失败，请手动检查！${RESET}"
+                        read -p "按回车键返回主菜单..."
+                        continue
+                    fi
+                    echo -e "${GREEN}Docker 安装成功！${RESET}"
+                fi
+
+                # 默认端口
+                DEFAULT_PORT=18888
+
+                # 检查端口是否占用
+                check_port() {
+                    local port=$1
+                    if netstat -tuln | grep ":$port" > /dev/null; then
+                        return 1
+                    else
+                        return 0
+                    fi
+                }
+
+                check_port $DEFAULT_PORT
+                if [ $? -eq 1 ]; then
+                    echo -e "${RED}端口 $DEFAULT_PORT 已被占用！${RESET}"
+                    read -p "请输入其他端口号（1-65535）： " new_port
+                    while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                        echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                        read -p "请输入其他端口号（1-65535）： " new_port
+                    done
+                    check_port $new_port
+                    while [ $? -eq 1 ]; do
+                        echo -e "${RED}端口 $new_port 已被占用，请选择其他端口！${RESET}"
+                        read -p "请输入其他端口号（1-65535）： " new_port
+                        while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                            echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                            read -p "请输入其他端口号（1-65535）： " new_port
+                        done
+                        check_port $new_port
+                    done
+                    DEFAULT_PORT=$new_port
+                fi
+
+                # 开放端口
+                echo -e "${YELLOW}正在开放端口 $DEFAULT_PORT...${RESET}"
+                if command -v ufw &> /dev/null; then
+                    sudo ufw allow $DEFAULT_PORT/tcp
+                    sudo ufw reload
+                    echo -e "${GREEN}UFW 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+                elif command -v firewall-cmd &> /dev/null; then
+                    sudo firewall-cmd --permanent --add-port=$DEFAULT_PORT/tcp
+                    sudo firewall-cmd --reload
+                    echo -e "${GREEN}Firewalld 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+                elif command -v iptables &> /dev/null; then
+                    sudo iptables -A INPUT -p tcp --dport $DEFAULT_PORT -j ACCEPT
+                    sudo iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+                    echo -e "${GREEN}iptables 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+                else
+                    echo -e "${YELLOW}未检测到常见防火墙工具，请手动开放端口 $DEFAULT_PORT！${RESET}"
+                fi
+
+                # 检查并创建存储目录
+                STORAGE_DIR="/root/wxy"
+                if [ ! -d "/root" ]; then
+                    STORAGE_DIR="/etc/wxy"
+                    echo -e "${YELLOW}未找到 /root 目录，将在 /etc/wxy 创建存储目录...${RESET}"
+                    sudo mkdir -p /etc/wxy
+                    sudo chmod 755 /etc/wxy
+                else
+                    sudo mkdir -p /root/wxy
+                    sudo chmod 755 /root/wxy
+                fi
+
+                # 拉取网心云镜像
+                echo -e "${YELLOW}正在拉取网心云镜像...${RESET}"
+                docker pull images-cluster.xycloud.com/wxedge/wxedge:latest
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}拉取网心云镜像失败，请检查网络连接！${RESET}"
+                    read -p "按回车键返回主菜单..."
+                    continue
+                fi
+
+                # 检查是否已有同名容器
+                if docker ps -a --format '{{.Names}}' | grep -q "^wxedge$"; then
+                    echo -e "${YELLOW}检测到已存在名为 wxedge 的容器，正在移除...${RESET}"
+                    docker stop wxedge &> /dev/null
+                    docker rm wxedge &> /dev/null
+                fi
+
+                # 运行网心云容器
+                echo -e "${YELLOW}正在启动网心云容器...${RESET}"
+                docker run -d --name=wxedge --restart=always --privileged --net=host \
+                    --tmpfs /run --tmpfs /tmp -v "$STORAGE_DIR:/storage:rw" \
+                    -e WXEDGE_PORT="$DEFAULT_PORT" \
+                    images-cluster.xycloud.com/wxedge/wxedge:latest
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}启动网心云容器失败，请检查 Docker 状态或日志！${RESET}"
+                    docker logs wxedge
+                    read -p "按回车键返回主菜单..."
+                    continue
+                fi
+
+                # 检查容器状态
+                sleep 3
+                if docker ps --format '{{.Names}}' | grep -q "^wxedge$"; then
+                    server_ip=$(curl -s4 ifconfig.me || echo "你的服务器IP")
+                    echo -e "${GREEN}网心云安装成功！${RESET}"
+                    echo -e "${YELLOW}容器名称：wxedge${RESET}"
+                    echo -e "${YELLOW}访问端口：$DEFAULT_PORT${RESET}"
+                    echo -e "${YELLOW}存储目录：$STORAGE_DIR${RESET}"
+                    echo -e "${YELLOW}访问地址：http://$server_ip:$DEFAULT_PORT${RESET}"
+                else
+                    echo -e "${RED}网心云容器未正常运行，请检查以下日志：${RESET}"
+                    docker logs wxedge
+                fi
+                read -p "按回车键返回主菜单..."
+                ;;
+            *)
+                echo -e "${RED}无效选项，请重新输入！${RESET}"
+                read -p "按回车键继续..."
                 ;;
         esac
     done
