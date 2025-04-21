@@ -212,10 +212,16 @@ show_menu() {
             3)
                 # 安装 v2ray 脚本
                 echo -e "${GREEN}正在安装 v2ray ...${RESET}"
-                wget -P /tmp -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent-2.5.73/master/install.sh"
+                wget -P /tmp -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh"
                 if [ $? -eq 0 ]; then
                     chmod 700 /tmp/install.sh
                     bash /tmp/install.sh
+                    sudo mkdir -p /etc/v2ray-agent
+                    sudo cp /tmp/install.sh /etc/v2ray-agent/install.sh
+                    sudo chmod 700 /etc/v2ray-agent/install.sh
+                    sed -i "s|alias sinian='bash </etc/v2ray-agent/install.sh'|alias sinian='bash /etc/v2ray-agent/install.sh'|" /root/.bashrc
+                    echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> /root/.bashrc
+                    source /root/.bashrc
                     rm -f /tmp/install.sh
                 else
                     echo -e "${RED}下载 v2ray 脚本失败，请检查网络！${RESET}"
