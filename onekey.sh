@@ -209,25 +209,43 @@ show_menu() {
                 fi
                 read -p "按回车键返回主菜单..."
                 ;;
-            3)
-                # 安装 v2ray 脚本
-                echo -e "${GREEN}正在安装 v2ray ...${RESET}"
-                wget -P /tmp -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh"
-                if [ $? -eq 0 ]; then
-                    chmod 700 /tmp/install.sh
-                    bash /tmp/install.sh
-                    sudo mkdir -p /etc/v2ray-agent
-                    sudo cp /tmp/install.sh /etc/v2ray-agent/install.sh
-                    sudo chmod 700 /etc/v2ray-agent/install.sh
-                    sed -i "s|alias sinian='bash </etc/v2ray-agent/install.sh'|alias sinian='bash /etc/v2ray-agent/install.sh'|" /root/.bashrc
-                    echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> /root/.bashrc
-                    source /root/.bashrc
-                    rm -f /tmp/install.sh
-                else
-                    echo -e "${RED}下载 v2ray 脚本失败，请检查网络！${RESET}"
-                fi
-                read -p "按回车键返回主菜单..."
-                ;;
+3)
+    # 安装 v2ray 脚本
+    echo -e "${GREEN}正在安装 v2ray ...${RESET}"
+    wget -P /tmp -N --no-check-certificate "https://raw.githubusercontent.com/sinian-liu/v2ray-agent/master/install.sh"
+    if [ $? -eq 0 ]; then
+        chmod +x /tmp/install.sh
+        /tmp/install.sh
+        sudo mkdir -p /etc/v2ray-agent
+        sudo cp /tmp/install.sh /etc/v2ray-agent/install.sh
+        sudo chmod +x /etc/v2ray-agent/install.sh
+        # 检测当前用户并确定 .bashrc 路径
+        CURRENT_USER=$(whoami)
+        BASHRC_PATH="/home/$CURRENT_USER/.bashrc"
+        if [ "$CURRENT_USER" = "root" ]; then
+            BASHRC_PATH="/root/.bashrc"
+        fi
+        # 移除旧的 sinian 别名
+        sed -i "/alias sinian=/d" "$BASHRC_PATH"
+        # 添加新的 sinian 别名
+        echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> "$BASHRC_PATH"
+        # 验证别名是否写入成功
+        if grep -q "alias sinian='bash /etc/v2ray-agent/install.sh'" "$BASHRC_PATH"; then
+            echo -e "${GREEN}sinian 快捷命令已成功写入 $BASHRC_PATH${RESET}"
+        else
+            echo -e "${RED}sinian 快捷命令写入 $BASHRC_PATH 失败，请手动添加以下行到 $BASHRC_PATH：${RESET}"
+            echo -e "${YELLOW}alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
+        fi
+        # 刷新当前会话
+        source "$BASHRC_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASHRC_PATH，请在新终端中运行 'source $BASHRC_PATH' 或重启终端${RESET}"
+        # 提示用户在新终端中测试 sinian 命令
+        echo -e "${YELLOW}安装完成！请在新终端中运行 'sinian' 命令以启动 v2ray 脚本${RESET}"
+        rm -f /tmp/install.sh
+    else
+        echo -e "${RED}下载 v2ray 脚本失败，请检查网络！${RESET}"
+    fi
+    read -p "按回车键返回主菜单..."
+    ;;
             4)
                 # 无人直播云 SRS 安装
                 echo -e "${GREEN}正在安装无人直播云 SRS ...${RESET}"
