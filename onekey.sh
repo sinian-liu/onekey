@@ -246,7 +246,7 @@ show_menu() {
         if [ -f "$BASH_PROFILE_PATH" ] || [ -f "$PROFILE_PATH" ]; then
             TARGET_PROFILE="$BASH_PROFILE_PATH"
             [ ! -f "$BASH_PROFILE_PATH" ] && TARGET_PROFILE="$PROFILE_PATH"
-            sed -i "/alias sinian=/d" "$TARGET_PROFILE" 2>/dev/null
+            sed -i "/alias植物园 sinian=/d" "$TARGET_PROFILE" 2>/dev/null
             echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> "$TARGET_PROFILE"
             # 确保 .bash_profile 或 .profile 加载 .bashrc
             if ! grep -q "source $BASHRC_PATH" "$TARGET_PROFILE"; then
@@ -259,26 +259,30 @@ show_menu() {
                 echo -e "${YELLOW}alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
             fi
         fi
-        # 在当前会话直接定义 sinian 别名
-        alias sinian='bash /etc/v2ray-agent/install.sh'
-        # 刷新当前会话的配置文件
-        source "$BASHRC_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASHRC_PATH，请手动运行 'source $BASHRC_PATH'${RESET}"
-        if [ -f "$BASH_PROFILE_PATH" ]; then
-            source "$BASH_PROFILE_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASH_PROFILE_PATH，请手动运行 'source $BASH_PROFILE_PATH'${RESET}"
-        elif [ -f "$PROFILE_PATH" ]; then
-            source "$PROFILE_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $PROFILE_PATH，请手动运行 'source $PROFILE_PATH'${RESET}"
-        fi
+        # 创建临时文件以在当前会话启用 sinian
+        TEMP_ALIAS_FILE="/tmp/sinian_alias.sh"
+        echo "alias sinian='bash /etc/v2ray-agent/install.sh'" > "$TEMP_ALIAS_FILE"
+        chmod +x "$TEMP_ALIAS_FILE"
+        # 提示用户在当前终端加载临时文件
+        echo -e "${GREEN}sinian 命令已准备好！请在当前终端运行以下命令以立即启用：${RESET}"
+        echo -e "${YELLOW}source $TEMP_ALIAS_FILE${RESET}"
+        echo -e "${GREEN}或者在新终端直接运行 'sinian'，因为别名已写入 $BASHRC_PATH 和 $TARGET_PROFILE${RESET}"
+        # 尝试在当前会话加载临时文件（可能因子 shell 限制无效）
+        source "$TEMP_ALIAS_FILE" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $TEMP_ALIAS_FILE，请手动运行 'source $TEMP_ALIAS_FILE'${RESET}"
         # 验证 sinian 命令是否立即可用
         if command -v sinian >/dev/null 2>&1; then
             echo -e "${GREEN}sinian 命令已立即可用！您可以直接运行 'sinian' 启动 v2ray 脚本${RESET}"
         else
-            echo -e "${RED}sinian 命令未立即生效，请尝试以下步骤：${RESET}"
-            echo -e "${YELLOW}1. 运行 'source $BASHRC_PATH' 或 'source $TARGET_PROFILE'${RESET}"
-            echo -e "${YELLOW}2. 打开新终端运行 'sinian'${RESET}"
-            echo -e "${YELLOW}3. 手动添加以下行到 $BASHRC_PATH 或 $TARGET_PROFILE：${RESET}"
-            echo -e "${YELLOW}   alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
+            echo -e "${YELLOW}sinian 命令未自动在当前会话生效，请手动运行以下命令：${RESET}"
+            echo -e "${YELLOW}source $TEMP_ALIAS_FILE${RESET}"
+            echo -e "${YELLOW}或者在新终端运行 'sinian'${RESET}"
+            echo -e "${YELLOW}如需永久修复，请手动添加以下行到 $BASHRC_PATH 或 $TARGET_PROFILE：${RESET}"
+            echo -e "${YELLOW}alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
         fi
+        # 清理临时文件
         rm -f /tmp/install.sh
+        # 提示临时文件将在会话结束时自动清理
+        echo -e "${YELLOW}注意：临时文件 $TEMP_ALIAS_FILE 将在下次重启或会话结束时自动删除${RESET}"
     else
         echo -e "${RED}下载 v2ray 脚本失败，请检查网络！${RESET}"
     fi
