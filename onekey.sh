@@ -219,27 +219,55 @@ show_menu() {
         sudo mkdir -p /etc/v2ray-agent
         sudo cp /tmp/install.sh /etc/v2ray-agent/install.sh
         sudo chmod +x /etc/v2ray-agent/install.sh
-        # 检测当前用户并确定 .bashrc 路径
+        # 确定当前用户的 shell 配置文件
         CURRENT_USER=$(whoami)
-        BASHRC_PATH="/home/$CURRENT_USER/.bashrc"
-        if [ "$CURRENT_USER" = "root" ]; then
-            BASHRC_PATH="/root/.bashrc"
+        BASHRC_PATH="/root/.bashrc"
+        BASH_PROFILE_PATH="/root/.bash_profile"
+        PROFILE_PATH="/root/.profile"
+        if [ "$CURRENT_USER" != "root" ]; then
+            BASHRC_PATH="/home/$CURRENT_USER/.bashrc"
+            BASH_PROFILE_PATH="/home/$CURRENT_USER/.bash_profile"
+            PROFILE_PATH="/home/$CURRENT_USER/.profile"
         fi
-        # 移除旧的 sinian 别名
-        sed -i "/alias sinian=/d" "$BASHRC_PATH"
-        # 添加新的 sinian 别名
+        # 确保 .bashrc 存在
+        [ ! -f "$BASHRC_PATH" ] && touch "$BASHRC_PATH"
+        # 清理旧的 sinian 别名
+        sed -i "/alias sinian=/d" "$BASHRC_PATH" 2>/dev/null
+        # 添加 sinian 别名到 .bashrc
         echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> "$BASHRC_PATH"
-        # 验证别名是否写入成功
+        # 验证 .bashrc 写入
         if grep -q "alias sinian='bash /etc/v2ray-agent/install.sh'" "$BASHRC_PATH"; then
             echo -e "${GREEN}sinian 快捷命令已成功写入 $BASHRC_PATH${RESET}"
         else
             echo -e "${RED}sinian 快捷命令写入 $BASHRC_PATH 失败，请手动添加以下行到 $BASHRC_PATH：${RESET}"
             echo -e "${YELLOW}alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
         fi
+        # 添加到 .bash_profile（如果存在）以支持登录 shell
+        if [ -f "$BASH_PROFILE_PATH" ] || [ -f "$PROFILE_PATH" ]; then
+            TARGET_PROFILE="$BASH_PROFILE_PATH"
+            [ ! -f "$BASH_PROFILE_PATH" ] && TARGET_PROFILE="$PROFILE_PATH"
+            sed -i "/alias sinian=/d" "$TARGET_PROFILE" 2>/dev/null
+            echo "alias sinian='bash /etc/v2ray-agent/install.sh'" >> "$TARGET_PROFILE"
+            if grep -q "alias sinian='bash /etc/v2ray-agent/install.sh'" "$TARGET_PROFILE"; then
+                echo -e "${GREEN}sinian 快捷命令已成功写入 $TARGET_PROFILE${RESET}"
+            else
+                echo -e "${RED}sinian 快捷命令写入 $TARGET_PROFILE 失败，请手动添加以下行到 $TARGET_PROFILE：${RESET}"
+                echo -e "${YELLOW}alias sinian='bash /etc/v2ray-agent/install.sh'${RESET}"
+            fi
+        fi
         # 刷新当前会话
-        source "$BASHRC_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASHRC_PATH，请在新终端中运行 'source $BASHRC_PATH' 或重启终端${RESET}"
-        # 提示用户在新终端中测试 sinian 命令
-        echo -e "${YELLOW}安装完成！请在新终端中运行 'sinian' 命令以启动 v2ray 脚本${RESET}"
+        source "$BASHRC_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASHRC_PATH，请手动运行 'source $BASHRC_PATH'${RESET}"
+        if [ -f "$BASH_PROFILE_PATH" ]; then
+            source "$BASH_PROFILE_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $BASH_PROFILE_PATH，请手动运行 'source $BASH_PROFILE_PATH'${RESET}"
+        elif [ -f "$PROFILE_PATH" ]; then
+            source "$PROFILE_PATH" 2>/dev/null || echo -e "${YELLOW}无法自动加载 $PROFILE_PATH，请手动运行 'source $PROFILE_PATH'${RESET}"
+        fi
+        # 验证 sinian 命令是否立即可用
+        if command -v sinian >/dev/null 2>&1; then
+            echo -e "${GREEN}sinian 命令已立即可用！您可以直接运行 'sinian' 启动 v2ray 脚本${RESET}"
+        else
+            echo -e "${YELLOW}sinian 命令未立即生效，请在新终端运行 'sinian' 或手动运行 'source $BASHRC_PATH'${RESET}"
+        fi
         rm -f /tmp/install.sh
     else
         echo -e "${RED}下载 v2ray 脚本失败，请检查网络！${RESET}"
