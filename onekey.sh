@@ -4297,7 +4297,7 @@ EOF"
                 echo -e "${RED}无效选项，请重新输入！${RESET}"
                 read -p "按回车键继续..."
                 ;;
-            23)
+                23)
                 # 3X-UI 搭建
                 echo -e "${GREEN}正在搭建 3X-UI 并启用 BBR...${RESET}"
                 echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
