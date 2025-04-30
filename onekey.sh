@@ -156,6 +156,7 @@ show_menu() {
         echo -e "${YELLOW}20.Speedtest测速面板${RESET}"
         echo -e "${YELLOW}21.WordPress 安装（基于 Docker）${RESET}"  
         echo -e "${YELLOW}22.网心云安装${RESET}" 
+        echo -e "${YELLOW}23.3X-UI搭建${RESET}"
         echo -e "${GREEN}=============================================${RESET}"
 
         read -p "请输入选项 (输入 'q' 退出): " option
@@ -4289,6 +4290,33 @@ EOF"
                 else
                     echo -e "${RED}网心云容器未正常运行，请检查以下日志：${RESET}"
                     docker logs wxedge
+                fi
+                read -p "按回车键返回主菜单..."
+                ;;
+            *)
+                echo -e "${RED}无效选项，请重新输入！${RESET}"
+                read -p "按回车键继续..."
+                ;;
+            23)
+                # 3X-UI 搭建
+                echo -e "${GREEN}正在搭建 3X-UI 并启用 BBR...${RESET}"
+                echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
+                echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
+                sudo sysctl -p
+                lsmod | grep bbr
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}BBR 模块已加载！${RESET}"
+                else
+                    echo -e "${RED}BBR 模块未加载，请检查内核支持！${RESET}"
+                fi
+                sysctl net.ipv4.tcp_congestion_control
+                echo -e "${YELLOW}正在下载并运行 3X-UI 安装脚本...${RESET}"
+                printf "y\nsinian\nsinian\n5321\na\n" | bash <(curl -Ls https://raw.githubusercontent.com/xeefei/3x-ui/master/install.sh)
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}3X-UI 搭建完成！${RESET}"
+                    echo -e "${YELLOW}请访问服务器 IP 的 5321 端口进行管理${RESET}"
+                else
+                    echo -e "${RED}3X-UI 安装失败，请检查网络或脚本输出！${RESET}"
                 fi
                 read -p "按回车键返回主菜单..."
                 ;;
