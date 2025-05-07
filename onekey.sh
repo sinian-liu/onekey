@@ -1077,6 +1077,7 @@ while true; do
     echo "10) 拉取镜像并安装容器"
     echo "11) 更新镜像并重启容器"
     echo "12) 批量操作容器"
+    echo "13) 安装 Portainer(Docker管理面板)"
     echo "0) 返回主菜单"
     read -p "请输入选项：" docker_choice
 
@@ -1816,6 +1817,98 @@ install_image_container() {
         esac
     }
 
+    # 选项13：安装 Portainer（Docker 管理面板）
+    install_portainer() {
+        if ! check_docker_status; then return; fi
+
+        # 默认端口
+        DEFAULT_PORT=9000
+
+        # 检查端口是否占用
+        check_port() {
+            local port=$1
+            if netstat -tuln | grep ":$port" > /dev/null; then
+                return 1
+            else
+                return 0
+            fi
+        }
+
+        check_port $DEFAULT_PORT
+        if [ $? -eq 1 ]; then
+            echo -e "${RED}端口 $DEFAULT_PORT 已被占用！${RESET}"
+            read -p "请输入其他端口号（1-65535）： " new_port
+            while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                read -p "请输入其他端口号（1-65535）： " new_port
+            done
+            check_port $new_port
+            while [ $? -eq 1 ]; do
+                echo -e "${RED}端口 $new_port 已被占用，请选择其他端口！${RESET}"
+                read -p "请输入其他端口号（1-65535）： " new_port
+                while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                    echo -e "${RED}无效端口，请输入 1-65535 之间的数字！${RESET}"
+                    read -p "请输入其他端口号（1-65535）： " new_port
+                done
+                check_port $new_port
+            done
+            DEFAULT_PORT=$new_port
+        fi
+
+        # 开放端口
+        echo -e "${YELLOW}正在开放端口 $DEFAULT_PORT...${RESET}"
+        if command -v ufw &> /dev/null; then
+            sudo ufw allow $DEFAULT_PORT/tcp
+            sudo ufw reload
+            echo -e "${GREEN}UFW 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+        elif command -v firewall-cmd &> /dev/null; then
+            sudo firewall-cmd --permanent --add-port=$DEFAULT_PORT/tcp
+            sudo firewall-cmd --reload
+            echo -e "${GREEN}Firewalld 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+        elif command -v iptables &> /dev/null; then
+            sudo iptables -A INPUT -p tcp --dport $DEFAULT_PORT -j ACCEPT
+            sudo iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+            echo -e "${GREEN}iptables 防火墙端口 $DEFAULT_PORT 已开放！${RESET}"
+        else
+            echo -e "${YELLOW}未检测到常见防火墙工具，请手动开放端口 $DEFAULT_PORT！${RESET}"
+        fi
+
+        # 拉取 Portainer 镜像
+        echo -e "${YELLOW}正在拉取 Portainer 镜像...${RESET}"
+        if ! docker pull 6053537/portainer-ce; then
+            echo -e "${RED}拉取 Portainer 镜像失败！请检查：\n1. 网络连接是否正常\n2. Docker 是否正常运行${RESET}"
+            return
+        fi
+
+        # 检查是否已有同名容器
+        if docker ps -a --format '{{.Names}}' | grep -q "^portainer$"; then
+            echo -e "${YELLOW}检测到已存在名为 portainer 的容器，正在移除...${RESET}"
+            docker stop portainer &> /dev/null
+            docker rm portainer &> /dev/null
+        fi
+
+        # 运行 Portainer 容器
+        echo -e "${YELLOW}正在启动 Portainer 容器...${RESET}"
+        if ! docker run -d --restart=always --name="portainer" -p $DEFAULT_PORT:9000 -v /var/run/docker.sock:/var/run/docker.sock 6053537/portainer-ce; then
+            echo -e "${RED}启动 Portainer 容器失败！请检查 Docker 日志：docker logs portainer${RESET}"
+            return
+        fi
+
+        # 检查容器状态
+        sleep 3
+        if docker ps --format '{{.Names}}' | grep -q "^portainer$"; then
+            server_ip=$(curl -s4 ifconfig.me || echo "你的服务器IP")
+            echo -e "${GREEN}Portainer 安装成功！${RESET}"
+            echo -e "${YELLOW}容器名称：portainer${RESET}"
+            echo -e "${YELLOW}访问端口：$DEFAULT_PORT${RESET}"
+            echo -e "${YELLOW}访问地址：http://$server_ip:$DEFAULT_PORT${RESET}"
+            echo -e "${YELLOW}首次登录需设置管理员密码，请访问以上地址完成初始化！${RESET}"
+        else
+            echo -e "${RED}Portainer 容器未正常运行，请检查以下日志：${RESET}"
+            docker logs portainer
+        fi
+    }
+    
     case $docker_choice in
         1) install_docker ;;
         2) uninstall_docker ;;
@@ -1829,6 +1922,7 @@ install_image_container() {
         10) install_image_container ;;
         11) update_image_restart ;;
         12) batch_operations ;;
+        13) install_portainer ;;
         0) break ;;
         *) echo -e "${RED}无效选项！${RESET}" ;;
     esac
