@@ -4694,7 +4694,7 @@ EOF"
                 fi
                 sysctl net.ipv4.tcp_congestion_control
                 echo -e "${YELLOW}正在下载并运行 3X-UI 安装脚本...${RESET}"
-                printf "y\nsinian\nsinian\n5321\na\n" | bash <(curl -Ls https://raw.githubusercontent.com/xeefei/3x-ui/master/install.sh)
+                printf "y\nsinian\nsinian\n5321\na\n" | bash <(curl -Ls https://raw.githubusercontent.com/sinian-liu/3x-ui/master/install.sh)
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}3X-UI 搭建完成！${RESET}"
                     echo -e "${YELLOW}请访问服务器 IP 的 5321 端口进行管理${RESET}"
