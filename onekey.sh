@@ -1355,6 +1355,18 @@ EOF
                                 fi
                                 echo "✅ Docker 安装成功！"
                             fi
+
+                            # 检查 Docker 服务是否运行
+                            if ! systemctl is-active --quiet docker; then
+                                echo "➜ 启动 Docker 服务..."
+                                systemctl start docker > /dev/null 2>&1
+                                if [ $? -ne 0 ]; then
+                                    echo "❌ Docker 服务启动失败，请检查系统配置！"
+                                    read -p "按回车键返回上一级..."
+                                    continue
+                                fi
+                                echo "✅ Docker 服务已启动！"
+                            fi
                             
                             # 默认端口
                             DEFAULT_PORT=81
@@ -1367,54 +1379,74 @@ EOF
                                 fi
                             }
                             
-                            # 检查端口是否占用
-                            check_port $DEFAULT_PORT
-                            if [ $? -eq 1 ]; then
-                                echo "❌ 端口 $DEFAULT_PORT 已被占用！"
-                                read -p "请输入其他端口号（1-65535）： " new_port
-                                while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
-                                    echo "❌ 无效端口，请输入 1-65535 之间的数字！"
-                                    read -p "请输入其他端口号（1-65535）： " new_port
-                                done
-                                check_port $new_port
-                                while [ $? -eq 1 ]; do
-                                    echo "❌ 端口 $new_port 已被占用，请选择其他端口！"
-                                    read -p "请输入其他端口号（1-65535）： " new_port
+                            # 检查必需端口 (80, 443, DEFAULT_PORT)
+                            for port in 80 443 $DEFAULT_PORT; do
+                                check_port $port
+                                if [ $? -eq 1 ]; then
+                                    echo "❌ 端口 $port 已被占用！"
+                                    read -p "请输入新的端口号（1-65535，替换端口 $port）： " new_port
                                     while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
                                         echo "❌ 无效端口，请输入 1-65535 之间的数字！"
-                                        read -p "请输入其他端口号（1-65535）： " new_port
+                                        read -p "请输入新的端口号（1-65535）： " new_port
                                     done
                                     check_port $new_port
-                                done
-                                DEFAULT_PORT=$new_port
-                            fi
+                                    while [ $? -eq 1 ]; do
+                                        echo "❌ 端口 $new_port 已被占用，请选择其他端口！"
+                                        read -p "请输入新的端口号（1-65535）： " new_port
+                                        while ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; do
+                                            echo "❌ 无效端口，请输入 1-65535 之间的数字！"
+                                            read -p "请输入新的端口号（1-65535）： " new_port
+                                        done
+                                        check_port $new_port
+                                    done
+                                    if [ "$port" == "80" ]; then
+                                        PORT_80=$new_port
+                                    elif [ "$port" == "443" ]; then
+                                        PORT_443=$new_port
+                                    else
+                                        DEFAULT_PORT=$new_port
+                                    fi
+                                else
+                                    if [ "$port" == "80" ]; then
+                                        PORT_80=$port
+                                    elif [ "$port" == "443" ]; then
+                                        PORT_443=$port
+                                    fi
+                                fi
+                            done
                             
                             # 开放端口
-                            echo "➜ 正在开放端口 80, 443, $DEFAULT_PORT..."
+                            echo "➜ 正在开放端口 $PORT_80, $PORT_443, $DEFAULT_PORT..."
                             if command -v ufw &> /dev/null; then
-                                ufw allow 80/tcp > /dev/null
-                                ufw allow 443/tcp > /dev/null
+                                ufw allow $PORT_80/tcp > /dev/null
+                                ufw allow $PORT_443/tcp > /dev/null
                                 ufw allow $DEFAULT_PORT/tcp > /dev/null
                                 ufw reload > /dev/null
-                                echo "✅ UFW 防火墙端口 80, 443, $DEFAULT_PORT 已开放！"
+                                echo "✅ UFW 防火墙端口 $PORT_80, $PORT_443, $DEFAULT_PORT 已开放！"
                             elif command -v firewall-cmd &> /dev/null; then
-                                firewall-cmd --permanent --add-port=80/tcp > /dev/null
-                                firewall-cmd --permanent --add-port=443/tcp > /dev/null
+                                firewall-cmd --permanent --add-port=$PORT_80/tcp > /dev/null
+                                firewall-cmd --permanent --add-port=$PORT_443/tcp > /dev/null
                                 firewall-cmd --permanent --add-port=$DEFAULT_PORT/tcp > /dev/null
                                 firewall-cmd --reload > /dev/null
-                                echo "✅ Firewalld 防火墙端口 80, 443, $DEFAULT_PORT 已开放！"
+                                echo "✅ Firewalld 防火墙端口 $PORT_80, $PORT_443, $DEFAULT_PORT 已开放！"
                             else
-                                echo "⚠️ 未检测到常见防火墙工具，请手动开放端口 80, 443, $DEFAULT_PORT！"
+                                echo "⚠️ 未检测到常见防火墙工具，请手动开放端口 $PORT_80, $PORT_443, $DEFAULT_PORT！"
                             fi
                             
                             # 运行 Nginx Proxy Manager 容器
-                            echo "➜ 正在启动 Nginx Proxy Manager 容器..."
-                            docker run -d --name npm -p 80:80 -p $DEFAULT_PORT:81 -p 443:443 \
+                            echo "➜ 正在启动 Nginx Proxy Manager 容器...容器较大，下载时间稍长，请耐心等会"
+                            docker pull chishin/nginx-proxy-manager-zh:latest > /dev/null 2>&1
+                            if [ $? -ne 0 ]; then
+                                echo "❌ 拉取镜像 chishin/nginx-proxy-manager-zh:latest 失败，请检查网络或镜像名称！"
+                                read -p "按回车键返回上一级..."
+                                continue
+                            fi
+                            docker run -d --name npm -p $PORT_80:80 -p $DEFAULT_PORT:81 -p $PORT_443:443 \
                                 -v ./data:/data -v ./letsencrypt:/etc/letsencrypt \
                                 chishin/nginx-proxy-manager-zh:latest > /dev/null 2>&1
                             if [ $? -ne 0 ]; then
-                                echo "❌ 启动 Nginx Proxy Manager 容器失败，请检查 Docker 状态或日志！"
-                                docker logs npm
+                                echo "❌ 启动 Nginx Proxy Manager 容器失败，请检查 Docker 状态、端口或存储空间！"
+                                docker logs npm 2>/dev/null || echo "❌ 无法获取容器日志，容器可能未创建！"
                                 read -p "按回车键返回上一级..."
                                 continue
                             fi
@@ -1430,7 +1462,7 @@ EOF
                                 echo -e "\e[31m⚠️ 请尽快登录并修改默认密码！\e[0m"
                             else
                                 echo "❌ Nginx Proxy Manager 容器未正常运行，请检查以下日志："
-                                docker logs npm
+                                docker logs npm 2>/dev/null || echo "❌ 无法获取容器日志，容器可能未创建！"
                             fi
                             read -p "按回车键返回上一级..."
                             ;;
