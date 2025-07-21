@@ -1359,7 +1359,7 @@ EOF
                             # 检查 Docker 服务是否运行
                             if ! systemctl is-active --quiet docker; then
                                 echo "➜ 启动 Docker 服务..."
-                                systemctl start docker > /dev/null 2>&1
+                                systemctl start docker
                                 if [ $? -ne 0 ]; then
                                     echo "❌ Docker 服务启动失败，请检查系统配置！"
                                     read -p "按回车键返回上一级..."
@@ -1367,7 +1367,32 @@ EOF
                                 fi
                                 echo "✅ Docker 服务已启动！"
                             fi
-                            
+
+                            # 检查磁盘空间
+                            echo "➜ 检查磁盘空间..."
+                            available_space=$(df -h . | awk 'NR==2 {print $4}' | grep -o '[0-9.]\+')
+                            if [ -z "$available_space" ] || [ $(echo "$available_space < 5" | bc) -eq 1 ]; then
+                                echo "❌ 磁盘空间不足（需要至少 5GB 可用空间）！当前可用: $available_space GB"
+                                read -p "按回车键返回上一级..."
+                                continue
+                            fi
+                            echo "✅ 磁盘空间充足：$available_space GB 可用"
+
+                            # 确保挂载目录存在并具有写权限
+                            echo "➜ 检查并创建挂载目录..."
+                            for dir in ./data ./letsencrypt; do
+                                if [ ! -d "$dir" ]; then
+                                    mkdir -p "$dir"
+                                    if [ $? -ne 0 ]; then
+                                        echo "❌ 创建目录 $dir 失败，请检查权限！"
+                                        read -p "按回车键返回上一级..."
+                                        continue 2
+                                    fi
+                                fi
+                                chmod 755 "$dir"
+                            done
+                            echo "✅ 挂载目录已准备好"
+
                             # 默认端口
                             DEFAULT_PORT=81
                             check_port() {
@@ -1435,17 +1460,21 @@ EOF
                             
                             # 运行 Nginx Proxy Manager 容器
                             echo "➜ 正在启动 Nginx Proxy Manager 容器...容器较大，下载时间稍长，请耐心等会"
-                            docker pull chishin/nginx-proxy-manager-zh:latest > /dev/null 2>&1
+                            docker pull chishin/nginx-proxy-manager-zh:latest
                             if [ $? -ne 0 ]; then
                                 echo "❌ 拉取镜像 chishin/nginx-proxy-manager-zh:latest 失败，请检查网络或镜像名称！"
                                 read -p "按回车键返回上一级..."
                                 continue
                             fi
+                            echo "✅ 镜像拉取成功"
                             docker run -d --name npm -p $PORT_80:80 -p $DEFAULT_PORT:81 -p $PORT_443:443 \
-                                -v ./data:/data -v ./letsencrypt:/etc/letsencrypt \
-                                chishin/nginx-proxy-manager-zh:latest > /dev/null 2>&1
+                                -v "$(pwd)/data:/data" -v "$(pwd)/letsencrypt:/etc/letsencrypt" \
+                                chishin/nginx-proxy-manager-zh:latest
                             if [ $? -ne 0 ]; then
-                                echo "❌ 启动 Nginx Proxy Manager 容器失败，请检查 Docker 状态、端口或存储空间！"
+                                echo "❌ 启动 Nginx Proxy Manager 容器失败，请检查以下可能原因："
+                                echo "  - 端口 $PORT_80, $PORT_443 或 $DEFAULT_PORT 是否仍被占用"
+                                echo "  - 磁盘空间是否充足"
+                                echo "  - 目录 $(pwd)/data 和 $(pwd)/letsencrypt 是否有写权限"
                                 docker logs npm 2>/dev/null || echo "❌ 无法获取容器日志，容器可能未创建！"
                                 read -p "按回车键返回上一级..."
                                 continue
