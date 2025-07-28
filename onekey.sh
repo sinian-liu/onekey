@@ -1626,8 +1626,6 @@ while true; do
     read -p "请输入选项：" docker_choice
 
     # 检查 Docker 状态
-1)
-    # 安装 Docker 环境
     echo -e "${GREEN}正在安装 Docker 环境...${RESET}"
     check_system
     if command -v docker &> /dev/null; then
