@@ -2513,8 +2513,6 @@ install_image_container() {
         *) echo -e "${RED}无效选项！${RESET}" ;;
     esac
     read -p "按回车键继续..."
-done
-    ;;
             19)
                 # SSH 防暴力破解检测与防护
                 echo -e "${GREEN}正在处理 SSH 暴力破解检测与防护...${RESET}"
