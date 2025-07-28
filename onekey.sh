@@ -1673,6 +1673,60 @@ while true; do
         else
             echo -e "${RED}Docker 安装失败！请检查日志。${RESET}"
         fi
+        # 检查 Docker Compose 状态
+check_docker_compose_status() {
+    if ! command -v docker-compose &> /dev/null; then
+        echo -e "${RED}Docker Compose 未安装，请先安装！${RESET}"
+        return 1
+    fi
+    return 0
+}
+
+# 安装 Docker Compose
+install_docker_compose() {
+    echo -e "${GREEN}正在安装 Docker Compose...${RESET}"
+    if command -v docker-compose &> /dev/null; then
+        echo -e "${YELLOW}Docker Compose 已经安装，当前版本：$(docker-compose --version | awk '{print $4}' | sed 's/,//')${RESET}"
+        return
+    fi
+
+    # 获取最新版本号
+    local COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$COMPOSE_VERSION" ]; then
+        echo -e "${RED}无法获取 Docker Compose 最新版本号！${RESET}"
+        return 1
+    fi
+
+    # 下载 Docker Compose 二进制文件
+    sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}下载 Docker Compose 失败！${RESET}"
+        return 1
+    fi
+
+    # 添加执行权限
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    # 验证安装
+    if command -v docker-compose &> /dev/null; then
+        echo -e "${GREEN}Docker Compose 安装成功！版本：$(docker-compose --version | awk '{print $4}' | sed 's/,//')${RESET}"
+    else
+        echo -e "${RED}Docker Compose 安装失败！请检查日志。${RESET}"
+        return 1
+    fi
+}
+
+# 主函数，依次安装 Docker 和 Docker Compose
+main() {
+    if ! install_docker; then
+        echo -e "${RED}Docker 安装失败，跳过 Docker Compose 安装。${RESET}"
+        return 1
+    fi
+
+    if ! install_docker_compose; then
+        echo -e "${RED}Docker Compose 安装失败！${RESET}"
+        return 1
+    fi
     }
 
     # 彻底卸载 Docker
