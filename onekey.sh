@@ -1625,6 +1625,7 @@ while true; do
     echo "0) 返回主菜单"
     read -p "请输入选项：" docker_choice
 
+
     # 安装 Docker 环境
     echo -e "${GREEN}正在安装 Docker...${RESET}"
     if command -v docker &> /dev/null || snap list | grep -q docker; then
@@ -1645,8 +1646,7 @@ while true; do
                 ;;
             *)
                 echo -e "${RED}不支持的 Linux 发行版！${RESET}"
-                read -p "按回车键返回 Docker 管理菜单..."
-                continue
+                return 1
                 ;;
         esac
 
@@ -1660,8 +1660,28 @@ while true; do
             fi
         else
             echo -e "${RED}Docker 安装失败！请检查日志。${RESET}"
+            return 1
         fi
     }
+
+    # 安装 Docker Compose
+    if command -v docker-compose &> /dev/null; then
+        echo -e "${YELLOW}Docker Compose 已经安装，当前版本：$(docker-compose --version | awk '{print $4}')${RESET}"
+    else
+        echo -e "${YELLOW}正在安装 Docker Compose...${RESET}"
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Docker Compose 下载失败，请检查网络！${RESET}"
+            return 1
+        fi
+        sudo chmod +x /usr/local/bin/docker-compose
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Docker Compose 设置权限失败，请手动检查！${RESET}"
+            return 1
+        fi
+        echo -e "${GREEN}Docker Compose 安装成功！版本：$(docker-compose --version | awk '{print $4}')${RESET}"
+    fi
+}
 
     # 安装 Docker Compose
     if command -v docker-compose &> /dev/null; then
