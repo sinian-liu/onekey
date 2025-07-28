@@ -1718,7 +1718,6 @@ while true; do
         echo -e "${GREEN}Docker Compose 安装成功！版本：$(docker-compose --version)${RESET}"
     fi
     read -p "按回车键返回 Docker 管理菜单..."
-    ;;
 
     # 彻底卸载 Docker
     uninstall_docker() {
