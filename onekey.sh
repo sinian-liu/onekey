@@ -1626,98 +1626,54 @@ while true; do
     read -p "请输入选项：" docker_choice
 
     # 检查 Docker 状态
-    echo -e "${GREEN}正在安装 Docker 环境...${RESET}"
-    check_system
-    if command -v docker &> /dev/null; then
-        echo -e "${YELLOW}Docker 已安装，跳过安装步骤。${RESET}"
-    else
+    check_docker_status() {
+        if ! command -v docker &> /dev/null && ! snap list | grep -q docker; then
+            echo -e "${RED}Docker 未安装，请先安装！${RESET}"
+            return 1
+        fi
+        return 0
+    }
+
+    # 安装 Docker
+    install_docker() {
+        echo -e "${GREEN}正在安装 Docker...${RESET}"
+        if command -v docker &> /dev/null || snap list | grep -q docker; then
+            echo -e "${YELLOW}Docker 已经安装，当前版本：$(docker --version | awk '{print $3}')${RESET}"
+            return
+        fi
+
+        check_system
         case $SYSTEM in
             ubuntu|debian)
-                echo -e "${YELLOW}检测到系统为 Debian/Ubuntu，正在安装 Docker...${RESET}"
-                sudo apt update
-                sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-                curl -fsSL https://download.docker.com/linux/$SYSTEM/gpg | sudo apt-key add -
-                sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$SYSTEM $(lsb_release -cs) stable"
-                sudo apt update
-                sudo apt install -y docker-ce docker-ce-cli containerd.io
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}Docker 安装失败，请检查网络或手动安装！${RESET}"
-                    read -p "按回车键返回 Docker 管理菜单..."
-                    continue
-                fi
-                sudo systemctl enable docker
-                sudo systemctl start docker
+                sudo apt update && sudo apt install -y docker.io || {
+                    echo -e "${RED}APT 源更新失败，尝试官方脚本安装...${RESET}"
+                    curl -fsSL https://get.docker.com | sh
+                }
                 ;;
-            centos)
-                echo -e "${YELLOW}检测到系统为 CentOS，正在安装 Docker...${RESET}"
+            centos|fedora)
                 sudo yum install -y yum-utils
-                sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+                sudo yum-config-manager --add-repo https://download.docker.com/linux/$SYSTEM/docker-ce.repo
                 sudo yum install -y docker-ce docker-ce-cli containerd.io
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}Docker 安装失败，请检查网络或手动安装！${RESET}"
-                    read -p "按回车键返回 Docker 管理菜单..."
-                    continue
-                fi
-                sudo systemctl enable docker
-                sudo systemctl start docker
-                ;;
-            fedora)
-                echo -e "${YELLOW}检测到系统为 Fedora，正在安装 Docker...${RESET}"
-                sudo dnf -y install dnf-plugins-core
-                sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-                sudo dnf install -y docker-ce docker-ce-cli containerd.io
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}Docker 安装失败，请检查网络或手动安装！${RESET}"
-                    read -p "按回车键返回 Docker 管理菜单..."
-                    continue
-                fi
-                sudo systemctl enable docker
-                sudo systemctl start docker
-                ;;
-            arch)
-                echo -e "${YELLOW}检测到系统为 Arch Linux，正在安装 Docker...${RESET}"
-                sudo pacman -Syu --noconfirm
-                sudo pacman -S --noconfirm docker
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}Docker 安装失败，请检查网络或手动安装！${RESET}"
-                    read -p "按回车键返回 Docker 管理菜单..."
-                    continue
-                fi
-                sudo systemctl enable docker
-                sudo systemctl start docker
                 ;;
             *)
-                echo -e "${RED}无法识别系统，无法安装 Docker！${RESET}"
-                read -p "按回车键返回 Docker 管理菜单..."
-                continue
+                echo -e "${RED}不支持的 Linux 发行版！${RESET}"
+                return 1
                 ;;
         esac
-        echo -e "${GREEN}Docker 安装成功！${RESET}"
-    fi
 
-    # 安装 Docker Compose
-    if command -v docker-compose &> /dev/null; then
-        echo -e "${YELLOW}Docker Compose 已安装，跳过安装步骤。${RESET}"
-    else
-        echo -e "${YELLOW}正在安装 Docker Compose...${RESET}"
-        DOCKER_COMPOSE_VERSION="2.20.0" # 使用最新稳定版本
-        curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Docker Compose 下载失败，请检查网络！${RESET}"
-            read -p "按回车键返回 Docker 管理菜单..."
-            continue
+        if command -v docker &> /dev/null; then
+            sudo systemctl enable --now docker
+            echo -e "${GREEN}Docker 安装成功！版本：$(docker --version | awk '{print $3}')${RESET}"
+
+            # 将当前用户加入 docker 组
+            if ! groups $USER | grep -q '\bdocker\b'; then
+                sudo usermod -aG docker $USER
+                echo -e "${YELLOW}已将当前用户加入 docker 组，请重新登录以生效。${RESET}"
+            fi
+        else
+            echo -e "${RED}Docker 安装失败！请检查日志。${RESET}"
         fi
-        sudo chmod +x /usr/local/bin/docker-compose
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Docker Compose 设置权限失败，请手动检查！${RESET}"
-            read -p "按回车键返回 Docker 管理菜单..."
-            continue
-        fi
-        # 创建软链接以确保全局可用
-        sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-        echo -e "${GREEN}Docker Compose 安装成功！版本：$(docker-compose --version)${RESET}"
-    fi
-    read -p "按回车键返回 Docker 管理菜单..."
+    }
 
     # 彻底卸载 Docker
     uninstall_docker() {
