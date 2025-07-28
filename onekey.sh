@@ -1634,88 +1634,46 @@ while true; do
         return 0
     }
 
-# 安装 Docker 和 Docker Compose
-install_docker() {
-    echo -e "${GREEN}正在安装 Docker...${RESET}"
-    if command -v docker &> /dev/null || snap list | grep -q docker; then
-        echo -e "${YELLOW}Docker 已经安装，当前版本：$(docker --version | awk '{print $3}')${RESET}"
-    else
-        check_system
-        if [ "$SYSTEM" = "ubuntu" ] || [ "$SYSTEM" = "debian" ]; then
-            sudo apt update && sudo apt install -y docker.io
-            if [ $? -ne 0 ]; then
-                echo -e "${RED}APT 源更新失败，尝试官方脚本安装...${RESET}"
-                curl -fsSL https://get.docker.com | sh
-            fi
-        elif [ "$SYSTEM" = "centos" ] || [ "$SYSTEM" = "fedora" ]; then
-            sudo yum install -y yum-utils
-            sudo yum-config-manager --add-repo https://download.docker.com/linux/$SYSTEM/docker-ce.repo
-            sudo yum install -y docker-ce docker-ce-cli containerd.io
-        else
-            echo -e "${RED}不支持的 Linux 发行版！${RESET}"
-            return 1
+    # 安装 Docker
+    install_docker() {
+        echo -e "${GREEN}正在安装 Docker...${RESET}"
+        if command -v docker &> /dev/null || snap list | grep -q docker; then
+            echo -e "${YELLOW}Docker 已经安装，当前版本：$(docker --version | awk '{print $3}')${RESET}"
+            return
         fi
+
+        check_system
+        case $SYSTEM in
+            ubuntu|debian)
+                sudo apt update && sudo apt install -y docker.io || {
+                    echo -e "${RED}APT 源更新失败，尝试官方脚本安装...${RESET}"
+                    curl -fsSL https://get.docker.com | sh
+                }
+                ;;
+            centos|fedora)
+                sudo yum install -y yum-utils
+                sudo yum-config-manager --add-repo https://download.docker.com/linux/$SYSTEM/docker-ce.repo
+                sudo yum install -y docker-ce docker-ce-cli containerd.io
+                ;;
+            *)
+                echo -e "${RED}不支持的 Linux 发行版！${RESET}"
+                return 1
+                ;;
+        esac
 
         if command -v docker &> /dev/null; then
             sudo systemctl enable --now docker
             echo -e "${GREEN}Docker 安装成功！版本：$(docker --version | awk '{print $3}')${RESET}"
+
+            # 将当前用户加入 docker 组
+            if ! groups $USER | grep -q '\bdocker\b'; then
+                sudo usermod -aG docker $USER
+                echo -e "${YELLOW}已将当前用户加入 docker 组，请重新登录以生效。${RESET}"
+            fi
         else
             echo -e "${RED}Docker 安装失败！请检查日志。${RESET}"
-            return 1
         fi
-
-        if ! groups $USER | grep -q '\bdocker\b'; then
-            sudo usermod -aG docker $USER
-            echo -e "${YELLOW}已将当前用户加入 docker 组，请重新登录以生效。${RESET}"
-        fi
-    fi
-
-    echo -e "${GREEN}正在安装 Docker Compose...${RESET}"
-    if command -v docker-compose &> /dev/null; then
-        echo -e "${YELLOW}Docker Compose 已经安装，当前版本：$(docker-compose --version | awk '{print $4}' | sed 's/,//')${RESET}"
-    else
-        local COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        if [ -z "$COMPOSE_VERSION" ]; then
-            echo -e "${RED}无法获取 Docker Compose 最新版本号！${RESET}"
-            return 1
-        fi
-
-        sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}下载 Docker Compose 失败！${RESET}"
-            return 1
-        fi
-
-        sudo chmod +x /usr/local/bin/docker-compose
-
-        if command -v docker-compose &> /dev/null; then
-            echo -e "${GREEN}Docker Compose 安装成功！版本：$(docker-compose --version | awk '{print $4}' | sed 's/,//')${RESET}"
-        else
-            echo -e "${RED}Docker Compose 安装失败！请检查日志。${RESET}"
-            return 1
-        fi
-    fi
-}
-
-# 彻底卸载 Docker
-uninstall_docker() {
-    if ! check_docker_status; then return; fi
-
-    # 检查运行中的容器
-    running_containers=$(docker ps -q)
-    if [ -n "$running_containers" ]; then
-        echo -e "${YELLOW}发现运行中的容器：${RESET}"
-        docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t{{.Status}}\t{{.RunningFor}}\t{{.Ports}}\t{{.Names}}" | sed 's/CONTAINER ID/容器ID/; s/IMAGE/镜像名称/; s/COMMAND/命令/; s/CREATED AT/创建时间/; s/STATUS/状态/; s/RUNNINGFOR/运行时间/; s/PORTS/端口映射/; s/NAMES/容器名称/; s/Up \([0-9]\+\) minutes\?/运行中/; s/Up \([0-9]\+\) seconds\?/运行中/'
-        read -p "是否停止并删除所有容器？(y/n，默认 n): " stop_choice
-        stop_choice=${stop_choice:-n}  # 默认值为 n
-        if [[ $stop_choice =~ [Yy] ]]; then
-            echo -e "${YELLOW}正在停止并移除运行中的 Docker 容器...${RESET}"
-            docker stop $(docker ps -aq) 2>/dev/null
-            docker rm $(docker ps -aq) 2>/dev/null
-        else
-            echo -e "${YELLOW}已跳过停止并删除容器。${RESET}"
-        fi
-    fi
+    }
 
     # 彻底卸载 Docker
     uninstall_docker() {
@@ -2513,6 +2471,8 @@ install_image_container() {
         *) echo -e "${RED}无效选项！${RESET}" ;;
     esac
     read -p "按回车键继续..."
+done
+    ;;
             19)
                 # SSH 防暴力破解检测与防护
                 echo -e "${GREEN}正在处理 SSH 暴力破解检测与防护...${RESET}"
