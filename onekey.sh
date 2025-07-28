@@ -1625,23 +1625,11 @@ while true; do
     echo "0) 返回主菜单"
     read -p "请输入选项：" docker_choice
 
-    # 检查 Docker 状态
-    check_docker_status() {
-        if ! command -v docker &> /dev/null && ! snap list | grep -q docker; then
-            echo -e "${RED}Docker 未安装，请先安装！${RESET}"
-            return 1
-        fi
-        return 0
-    }
-
-    # 安装 Docker
-    install_docker() {
-        echo -e "${GREEN}正在安装 Docker...${RESET}"
-        if command -v docker &> /dev/null || snap list | grep -q docker; then
-            echo -e "${YELLOW}Docker 已经安装，当前版本：$(docker --version | awk '{print $3}')${RESET}"
-            return
-        fi
-
+    # 安装 Docker 环境
+    echo -e "${GREEN}正在安装 Docker...${RESET}"
+    if command -v docker &> /dev/null || snap list | grep -q docker; then
+        echo -e "${YELLOW}Docker 已经安装，当前版本：$(docker --version | awk '{print $3}')${RESET}"
+    else
         check_system
         case $SYSTEM in
             ubuntu|debian)
@@ -1657,14 +1645,14 @@ while true; do
                 ;;
             *)
                 echo -e "${RED}不支持的 Linux 发行版！${RESET}"
-                return 1
+                read -p "按回车键返回 Docker 管理菜单..."
+                continue
                 ;;
         esac
 
         if command -v docker &> /dev/null; then
             sudo systemctl enable --now docker
             echo -e "${GREEN}Docker 安装成功！版本：$(docker --version | awk '{print $3}')${RESET}"
-
             # 将当前用户加入 docker 组
             if ! groups $USER | grep -q '\bdocker\b'; then
                 sudo usermod -aG docker $USER
@@ -1674,6 +1662,27 @@ while true; do
             echo -e "${RED}Docker 安装失败！请检查日志。${RESET}"
         fi
     }
+
+    # 安装 Docker Compose
+    if command -v docker-compose &> /dev/null; then
+        echo -e "${YELLOW}Docker Compose 已安装，跳过安装步骤。${RESET}"
+    else
+        echo -e "${YELLOW}正在安装 Docker Compose...${RESET}"
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Docker Compose 下载失败，请检查网络！${RESET}"
+            read -p "按回车键返回 Docker 管理菜单..."
+            return
+        fi
+        sudo chmod +x /usr/local/bin/docker-compose
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Docker Compose 设置权限失败，请手动检查！${RESET}"
+            read -p "按回车键返回 Docker 管理菜单..."
+            return
+        fi
+        echo -e "${GREEN}Docker Compose 安装成功！${RESET}"
+    fi
+}
 
     # 彻底卸载 Docker
     uninstall_docker() {
