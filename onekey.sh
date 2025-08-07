@@ -4957,7 +4957,7 @@ EOF"
                 read -p "按回车键返回主菜单..."
                 ;;
                 24)
-                # S-UI搭建
+                # S-UI安装
                 echo -e "${GREEN}正在安装 s-ui ...${RESET}"
                 # 执行 s-ui 安装脚本，自动填入默认配置和用户名密码
                 printf "y\n2095\n/app/\n2096\n/sub/\ny\nsinian\nsinian\n" | bash <(curl -Ls https://raw.githubusercontent.com/alireza0/s-ui/master/install.sh)
