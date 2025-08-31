@@ -392,7 +392,7 @@ echo "公司域名: $company_domain"
 echo "公司类型: $company_type"
 echo -e "\n\n备注："
 echo "1. ASN 编号、名称、路由和类型字段仅在付费版本中可用。"
-echo "2. 公司信息（名称、域名、类型）仅在付费版本中可用。"
+echo "2. 公司 Twain信息（名称、域名、类型）仅在付费版本中可用。"
 
 # IP 欺诈风险检测
 API_KEY="89c1e8dc1272cb7b1e1f162cbdcc0cf4434a06c41b4ab7f8b7f9497c0cd56e9f"
@@ -762,23 +762,12 @@ else:
 
 # 检查 pngquant 是否可用并进一步压缩
 if os.system("pngquant --version >/dev/null 2>&1") == 0:
-    if os.system(f"pngquant --quality=50-70 --strip {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
+    if os.system(f"pngquant --quality=40-60 --strip {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
         print(f"pngquant 压缩后的提取图片报告已生成：{compressed_image_path}")
     else:
         print("pngquant 压缩失败，请检查 pngquant 是否正确安装。")
 else:
     print("pngquant 未安装，跳过 pngquant 压缩。")
-
-# 设置文件权限
-if [ -f "$new_image_path" ]; then
-    chmod 644 "$new_image_path"
-fi
-if [ -f "$compressed_image_path" ]; then
-    chmod 644 "$compressed_image_path"
-fi
-if [ -f "$new_html_path" ]; then
-    chmod 644 "$new_html_path"
-fi
 EOF
 
 # 检查提取报告是否生成
@@ -794,6 +783,15 @@ if [ -f "$COMPRESSED_IMAGE_FILE" ]; then
 else
     echo "压缩后的提取图片报告未生成，请检查 /root/extract_report_error.log"
 fi
+if [ -f "$EXTRACTED_REPORT_FILE" ]; then
+    echo "提取的 HTML 报告存在：$EXTRACTED_REPORT_FILE"
+    ls -lh "$EXTRACTED_REPORT_FILE"
+else
+    echo "提取的 HTML 报告未生成，请检查 /root/extract_report_error.log"
+fi
+
+# 设置文件权限
+chmod 644 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" "$COMPRESSED_IMAGE_FILE" 2>/dev/null
 
 # 清理旧报告（保留最近 5 次）
 ls -t /root/extracted_report_*.{html,png} 2>/dev/null | tail -n +11 | xargs -I {} rm -f {}
