@@ -58,7 +58,6 @@ if [ ! -f "$FIRST_RUN_FLAG" ]; then
         else
             echo "Python 已安装。"
         fi
-        # 安装 Pillow
         if ! python3 -c "import PIL" &>/dev/null; then
             echo "Pillow 未安装，正在安装..."
             sudo pip3 install pillow
@@ -570,6 +569,7 @@ if command -v wkhtmltoimage &>/dev/null; then
     wkhtmltoimage --width 1200 --quality 90 "$REPORT_FILE" "$IMAGE_FILE" 2>/dev/null
     if [ -f "$IMAGE_FILE" ]; then
         echo "完整图片报告已生成：$IMAGE_FILE"
+        echo "注意：完整图片报告文件较大（约400MB），建议使用压缩后的提取报告。"
     else
         echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装。"
     fi
@@ -579,7 +579,7 @@ fi
 
 # 生成提取报告
 echo "正在生成提取的测试报告..."
-python3 - <<'EOF'
+python3 - <<'EOF' 2> /root/extract_report_error.log
 import re
 import os
 from datetime import datetime
@@ -601,67 +601,91 @@ except FileNotFoundError:
     print(f"错误：日志文件 {log_path} 不存在。请先运行测试脚本生成日志。")
     exit(1)
 
-# 提取指定部分
+# 提取指定部分（增加容错性）
 sections = []
 # 1. 系统信息查询
-sys_info = re.search(r"系统信息查询.*?运行时长:.*?\n", log_content, re.DOTALL)
+sys_info = re.search(r"系统信息查询.*?运行时长:.*?(?:\n\n|$)", log_content, re.DOTALL)
 if sys_info:
     sections.append(sys_info.group(0))
+else:
+    print("警告：未匹配到 '系统信息查询' 部分。")
 
 # 2. 硬盘 I/O 性能测试
-disk_test = re.search(r"硬盘 I/O 性能测试.*?测试数据不是百分百准确，以官方宣称为主。", log_content, re.DOTALL)
+disk_test = re.search(r"硬盘 I/O 性能测试.*?测试数据不是百分百准确，以官方宣称为主。.*?(?:\n\n|$)", log_content, re.DOTALL)
 if disk_test:
     sections.append(disk_test.group(0))
+else:
+    print("警告：未匹配到 '硬盘 I/O 性能测试' 部分。")
 
 # 3. 基础信息（Maxmind 数据库）
-maxmind = re.search(r"一、基础信息（Maxmind 数据库）.*?使用地：.*?\n", log_content, re.DOTALL)
+maxmind = re.search(r"一、基础信息（Maxmind 数据库）.*?使用地：.*?(?:\n\n|$)", log_content, re.DOTALL)
 if maxmind:
     sections.append(maxmind.group(0))
+else:
+    print("警告：未匹配到 '基础信息（Maxmind 数据库）' 部分。")
 
 # 4. IP类型属性
-ip_type = re.search(r"二、IP类型属性.*?公司类型：.*?\n", log_content, re.DOTALL)
+ip_type = re.search(r"二、IP类型属性.*?公司类型：.*?(?:\n\n|$)", log_content, re.DOTALL)
 if ip_type:
     sections.append(ip_type.group(0))
+else:
+    print("警告：未匹配到 'IP类型属性' 部分。")
 
 # 5. 风险评分
-risk_score = re.search(r"三、风险评分.*?DB-IP：.*?\n", log_content, re.DOTALL)
+risk_score = re.search(r"三、风险评分.*?DB-IP：.*?(?:\n\n|$)", log_content, re.DOTALL)
 if risk_score:
     sections.append(risk_score.group(0))
+else:
+    print("警告：未匹配到 '风险评分' 部分。")
 
 # 6. 风险因子
-risk_factor = re.search(r"四、风险因子.*?滥用：.*?\n", log_content, re.DOTALL)
+risk_factor = re.search(r"四、风险因子.*?滥用：.*?(?:\n\n|$)", log_content, re.DOTALL)
 if risk_factor:
     sections.append(risk_factor.group(0))
+else:
+    print("警告：未匹配到 '风险因子' 部分。")
 
 # 7. 流媒体及AI服务解锁检测
-streaming = re.search(r"五、流媒体及AI服务解锁检测.*?地区：.*?\n", log_content, re.DOTALL)
+streaming = re.search(r"五、流媒体及AI服务解锁检测.*?地区：.*?(?:\n\n|$)", log_content, re.DOTALL)
 if streaming:
     sections.append(streaming.group(0))
+else:
+    print("警告：未匹配到 '流媒体及AI服务解锁检测' 部分。")
 
 # 8. 邮局连通性及黑名单检测
-mail_blacklist = re.search(r"六、邮局连通性及黑名单检测.*?黑名单 \d+", log_content, re.DOTALL)
+mail_blacklist = re.search(r"六、邮局连通性及黑名单检测.*?黑名单 \d+.*?(?:\n\n|$)", log_content, re.DOTALL)
 if mail_blacklist:
     sections.append(mail_blacklist.group(0))
+else:
+    print("警告：未匹配到 '邮局连通性及黑名单检测' 部分。")
 
 # 9. 北京/上海/广州/成都 三网回程线路测试
-backtrace = re.search(r"项目地址: https://github.com/zhanghanyun/backtrace.*?2025/\d{2}/\d{2} \d{2}:\d{2}:\d{2} 测试完成!", log_content, re.DOTALL)
+backtrace = re.search(r"项目地址: https://github.com/zhanghanyun/backtrace.*?2025/\d{2}/\d{2} \d{2}:\d{2}:\d{2} 测试完成!.*?(?:\n\n|$)", log_content, re.DOTALL)
 if backtrace:
     sections.append(backtrace.group(0))
+else:
+    print("警告：未匹配到 '三网回程线路测试' 部分。")
 
 # 10. 大陆三网+教育网 IPv4 单线程测速
-speedtest = re.search(r"大陆三网\+教育网 IPv4 单线程测速.*?电信 江苏南京 5G.*?\n", log_content, re.DOTALL)
+speedtest = re.search(r"大陆三网\+教育网 IPv4 单线程测速.*?电信 江苏南京 5G.*?(?:\n\n|$)", log_content, re.DOTALL)
 if speedtest:
     sections.append(speedtest.group(0))
+else:
+    print("警告：未匹配到 '大陆三网+教育网 IPv4 单线程测速' 部分。")
 
 # 11. Multination 流媒体解锁检测
-multination = re.search(r"============\[ Multination \]============.*?---CA---.*?Crave:.*?\n", log_content, re.DOTALL)
+multination = re.search(r"============\[ Multination \]============.*?---CA---.*?Crave:.*?(?:\n\n|$)", log_content, re.DOTALL)
 if multination:
     sections.append(multination.group(0))
+else:
+    print("警告：未匹配到 'Multination 流媒体解锁检测' 部分。")
 
 # 12. Bench.sh 性能测试
-bench = re.search(r"-------------------- A Bench.sh Script By Teddysun -------------------.*?Timestamp :.*?\n", log_content, re.DOTALL)
+bench = re.search(r"-------------------- A Bench.sh Script By Teddysun -------------------.*?Timestamp :.*?(?:\n\n|$)", log_content, re.DOTALL)
 if bench:
     sections.append(bench.group(0))
+else:
+    print("警告：未匹配到 'Bench.sh 性能测试' 部分。")
 
 # 检查是否提取到内容
 if not sections:
@@ -680,20 +704,20 @@ html_template = f"""
             font-family: 'Noto Sans CJK SC', monospace;
             background-color: #2e2e2e;
             color: #ffffff;
-            margin: 20px;
-            padding: 20px;
-            font-size: 12px; /* 减小字体以优化大小 */
+            margin: 10px;
+            padding: 10px;
+            font-size: 10px;
         }}
         pre {{
             background-color: #1a1a1a;
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
             white-space: pre-wrap;
             word-wrap: break-word;
         }}
         h1 {{
             color: #f0c674;
-            font-size: 16px; /* 减小标题字体 */
+            font-size: 14px;
         }}
     </style>
 </head>
@@ -705,34 +729,71 @@ html_template = f"""
 </body>
 </html>
 """
-with open("{new_html_path}", "w", encoding="utf-8") as f:
+with open(new_html_path, "w", encoding="utf-8") as f:
     f.write(html_template)
 print(f"提取的 HTML 报告已生成：{new_html_path}")
 
-# 生成图片报告
-if os.system(f"wkhtmltoimage --width 800 --quality 90 {new_html_path} {new_image_path} 2>/dev/null") == 0:
-    print(f"提取的图片报告已生成：{new_image_path}")
+# 检查 wkhtmltoimage 是否可用
+if not os.system("wkhtmltoimage --version >/dev/null 2>&1"):
+    # 生成图片报告
+    if os.system(f"wkhtmltoimage --width 600 --quality 90 {new_html_path} {new_image_path} 2>/dev/null") == 0:
+        print(f"提取的图片报告已生成：{new_image_path}")
+    else:
+        print("生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。")
+        exit(1)
 else:
-    print("生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。")
+    print("wkhtmltoimage 未安装，跳过提取图片报告生成。")
     exit(1)
 
-# 压缩图片（Pillow）
-try:
-    img = Image.open(new_image_path)
-    width = 800
-    height = int((width / img.width) * img.height)
-    img_resized = img.resize((width, height), Image.LANCZOS)
-    img_resized.save(compressed_image_path, "PNG", optimize=True, quality=70)
-    print(f"Pillow 压缩后的提取图片报告已生成：{compressed_image_path}")
-except Exception as e:
-    print(f"Pillow 压缩图片失败：{e}")
-
-# 使用 pngquant 进一步压缩
-if os.system(f"pngquant --quality=65-80 {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
-    print(f"pngquant 压缩后的提取图片报告已生成：{compressed_image_path}")
+# 检查 Pillow 是否可用
+if os.system("python3 -c 'import PIL' >/dev/null 2>&1") == 0:
+    # 压缩图片（Pillow）
+    try:
+        img = Image.open(new_image_path)
+        width = 600
+        height = int((width / img.width) * img.height)
+        img_resized = img.resize((width, height), Image.LANCZOS)
+        img_resized.save(compressed_image_path, "PNG", optimize=True, quality=50)
+        print(f"Pillow 压缩后的提取图片报告已生成：{compressed_image_path}")
+    except Exception as e:
+        print(f"Pillow 压缩图片失败：{e}")
 else:
-    print("pngquant 压缩失败，请检查 pngquant 是否正确安装。")
+    print("Pillow 未安装，跳过 Pillow 压缩。")
+
+# 检查 pngquant 是否可用并进一步压缩
+if os.system("pngquant --version >/dev/null 2>&1") == 0:
+    if os.system(f"pngquant --quality=50-70 --strip {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
+        print(f"pngquant 压缩后的提取图片报告已生成：{compressed_image_path}")
+    else:
+        print("pngquant 压缩失败，请检查 pngquant 是否正确安装。")
+else:
+    print("pngquant 未安装，跳过 pngquant 压缩。")
+
+# 设置文件权限
+if [ -f "$new_image_path" ]; then
+    chmod 644 "$new_image_path"
+fi
+if [ -f "$compressed_image_path" ]; then
+    chmod 644 "$compressed_image_path"
+fi
+if [ -f "$new_html_path" ]; then
+    chmod 644 "$new_html_path"
+fi
 EOF
+
+# 检查提取报告是否生成
+if [ -f "$EXTRACTED_IMAGE_FILE" ]; then
+    echo "提取图片报告存在：$EXTRACTED_IMAGE_FILE"
+    ls -lh "$EXTRACTED_IMAGE_FILE"
+else
+    echo "提取图片报告未生成，请检查 /root/extract_report_error.log"
+fi
+if [ -f "$COMPRESSED_IMAGE_FILE" ]; then
+    echo "压缩后的提取图片报告存在：$COMPRESSED_IMAGE_FILE"
+    ls -lh "$COMPRESSED_IMAGE_FILE"
+else
+    echo "压缩后的提取图片报告未生成，请检查 /root/extract_report_error.log"
+fi
 
 # 清理旧报告（保留最近 5 次）
 ls -t /root/extracted_report_*.{html,png} 2>/dev/null | tail -n +11 | xargs -I {} rm -f {}
@@ -749,6 +810,8 @@ elif [[ -f /etc/redhat-release ]]; then
     }
 fi
 cd /root
+# 杀死旧的 Web 服务器进程
+pkill -f "python3 -m http.server $PORT" 2>/dev/null
 nohup python3 -m http.server $PORT --bind 0.0.0.0 > /dev/null 2>&1 &
 PUBLIC_IP=$(curl -s https://api.ipify.org)
 if [[ -n "$PUBLIC_IP" ]]; then
