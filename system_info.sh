@@ -375,27 +375,20 @@ display_fraud_score "$IP" "$FRAUD_SCORE" "$RISK_LEVEL"
 
 # 执行外部测试脚本
 echo -e "\n${YELLOW}执行外部测试脚本${NC}"
-run_external_test() {
-    local url=$1
-    local cmd=$2
-    local retries=3
-    for i in $(seq 1 $retries); do
-        if curl -sL "$url" -o /tmp/test_script.sh && chmod +x /tmp/test_script.sh && bash /tmp/test_script.sh $cmd 2>>"$EXTRACT_ERROR_LOG"; then
-            return 0
-        else
-            echo "第 $i 次尝试 $url 失败，$((retries - i)) 次重试剩余..." >> "$EXTRACT_ERROR_LOG"
-            sleep 2
-        fi
-    done
-    echo "警告：$url 下载或执行失败。" >> "$EXTRACT_ERROR_LOG"
-    return 1
-}
-run_external_test "https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh" <<< "2" || echo "三网+教育网 IPv4 单线程测速未完成。"
-run_external_test "https://nxtrace.org/nt" "&& sleep 2 && echo -e '1\n6' | nexttrace --fast-trace" || echo "全国五网ISP路由回程测试未完成。"
-run_external_test "https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh" "" || echo "三网回程线路测试未完成。"
-run_external_test "https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh" "" || echo "第二个三网回程线路测试未完成。"
-run_external_test "https://check.unlock.media" <<< "66" || echo "流媒体平台及游戏区域限制测试未完成。"
-run_external_test "https://raw.githubusercontent.com/teddysun/across/master/bench.sh" "" || echo "Bench 性能测试未完成."
+echo "正在执行 IP 质量检测..."
+bash <(curl -Ls IP.Check.Place) <<< "y" 2>>"$EXTRACT_ERROR_LOG" || echo "IP 质量检测执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行第一个三网回程线路测试..."
+curl https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -sSf | sh 2>>"$EXTRACT_ERROR_LOG" || echo "第一个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行第二个三网回程线路测试..."
+curl https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "第二个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行三网+教育网 IPv4 单线程测速..."
+bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh) <<< "2" 2>>"$EXTRACT_ERROR_LOG" || echo "三网+教育网 IPv4 单线程测速执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行流媒体平台及游戏区域限制测试..."
+bash <(curl -L -s check.unlock.media) <<< "66" 2>>"$EXTRACT_ERROR_LOG" || echo "流媒体平台及游戏区域限制测试执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行全国五网ISP路由回程测试..."
+curl -s https://nxtrace.org/nt | bash -s && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace 2>>"$EXTRACT_ERROR_LOG" || echo "全国五网ISP路由回程测试执行失败" >> "$EXTRACT_ERROR_LOG"
+echo "正在执行 Bench 性能测试..."
+curl -Lso- bench.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "Bench 性能测试执行失败" >> "$EXTRACT_ERROR_LOG"
 
 echo -e "\n${YELLOW}37VPS主机评测：${NC}\033[31mhttps://1373737.xyz\033[0m"
 echo -e "${YELLOW}服务器推荐：${NC}\033[31mhttps://my.frantech.ca/aff.php?aff=4337\033[0m"
