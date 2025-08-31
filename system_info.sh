@@ -47,32 +47,6 @@ if [ ! -f "$FIRST_RUN_FLAG" ]; then
         else
             echo "lsb-release 已安装。"
         fi
-        # 安装 Python 和 Pillow
-        if ! command -v python3 &>/dev/null; then
-            echo "Python 未安装，正在安装..."
-            if [[ -f /etc/debian_version ]]; then
-                sudo apt install -y python3 python3-pip
-            elif [[ -f /etc/redhat-release ]]; then
-                sudo yum install -y python3 python3-pip
-            fi
-        else
-            echo "Python 已安装。"
-        fi
-        if ! python3 -c "import PIL" &>/dev/null; then
-            echo "Pillow 未安装，正在安装..."
-            if [[ -f /etc/debian_version ]]; then
-                sudo apt install -y python3-pil
-            elif [[ -f /etc/redhat-release ]]; then
-                sudo pip3 install pillow
-            fi
-            if ! python3 -c "import PIL" &>/dev/null; then
-                echo "Pillow 安装失败，请手动安装：sudo pip3 install pillow"
-            else
-                echo "Pillow 安装成功。"
-            fi
-        else
-            echo "Pillow 已安装。"
-        fi
         # 安装中文字体
         if [[ -f /etc/debian_version ]]; then
             if ! dpkg -l | grep -q fonts-noto-cjk; then
@@ -535,6 +509,8 @@ IMAGE_FILE="/root/test_report_${TIMESTAMP}.png"
 EXTRACTED_REPORT_FILE="/root/extracted_report_${TIMESTAMP}.html"
 EXTRACTED_IMAGE_FILE="/root/extracted_report_${TIMESTAMP}.png"
 COMPRESSED_IMAGE_FILE="/root/extracted_report_compressed_${TIMESTAMP}.png"
+EXTRACT_LOG="/root/extract_log_${TIMESTAMP}.txt"
+EXTRACT_ERROR_LOG="/root/extract_report_error.log"
 
 # 生成完整 HTML 报告
 cat <<EOF > "$REPORT_FILE"
@@ -580,223 +556,188 @@ if command -v wkhtmltoimage &>/dev/null; then
         echo "完整图片报告已生成：$IMAGE_FILE"
         echo "注意：完整图片报告文件较大（约400MB），建议使用压缩后的提取报告。"
     else
-        echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装。"
+        echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装。" >&2
     fi
 else
-    echo "wkhtmltoimage 未安装，跳过完整图片报告生成。"
+    echo "wkhtmltoimage 未安装，跳过完整图片报告生成。" >&2
 fi
 
 # 生成提取报告
-echo "正在生成提取的测试报告..."
-python3 - <<'EOF' 2> /root/extract_report_error.log
-import re
-import os
-from datetime import datetime
+echo "正在生成提取的测试报告..." >&2
+rm -f "$EXTRACT_ERROR_LOG"
+touch "$EXTRACT_ERROR_LOG"
 
-# 输入日志文件
-log_path = "/root/test_log.txt"
-# 生成带时间戳的文件名
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-new_html_path = f"/root/extracted_report_{timestamp}.html"
-new_image_path = f"/root/extracted_report_{timestamp}.png"
-compressed_image_path = f"/root/extracted_report_compressed_{timestamp}.png"
+# 检查日志文件
+if [ ! -f "$LOG_FILE" ]; then
+    echo "错误：日志文件 $LOG_FILE 不存在。请先运行测试脚本生成日志。" >> "$EXTRACT_ERROR_LOG"
+    exit 1
+fi
 
-# 读取日志文件
-try:
-    with open(log_path, "r", encoding="utf-8") as f:
-        log_content = f.read()
-except FileNotFoundError:
-    print(f"错误：日志文件 {log_path} 不存在。请先运行测试脚本生成日志。")
-    exit(1)
-
-# 提取指定部分（增加容错性）
-sections = []
+# 提取指定部分
+> "$EXTRACT_LOG"
 # 1. 系统信息查询
-sys_info = re.search(r"系统信息查询.*?运行时长:.*?(?:\n\n|$)", log_content, re.DOTALL)
-if sys_info:
-    sections.append(sys_info.group(0))
-else:
-    print("警告：未匹配到 '系统信息查询' 部分。")
-
+if grep -A 50 "系统信息查询" "$LOG_FILE" | sed -n '/系统信息查询/,/运行时长:/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '系统信息查询' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 2. 硬盘 I/O 性能测试
-disk_test = re.search(r"硬盘 I/O 性能测试.*?测试数据不是百分百准确，以官方宣称为主。.*?(?:\n\n|$)", log_content, re.DOTALL)
-if disk_test:
-    sections.append(disk_test.group(0))
-else:
-    print("警告：未匹配到 '硬盘 I/O 性能测试' 部分。")
-
+if grep -A 50 "硬盘 I/O 性能测试" "$LOG_FILE" | sed -n '/硬盘 I/O 性能测试/,/测试数据不是百分百准确，以官方宣称为主。/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '硬盘 I/O 性能测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 3. 基础信息（Maxmind 数据库）
-maxmind = re.search(r"一、基础信息（Maxmind 数据库）.*?使用地：.*?(?:\n\n|$)", log_content, re.DOTALL)
-if maxmind:
-    sections.append(maxmind.group(0))
-else:
-    print("警告：未匹配到 '基础信息（Maxmind 数据库）' 部分。")
-
+if grep -A 50 "一、基础信息（Maxmind 数据库）" "$LOG_FILE" | sed -n '/一、基础信息（Maxmind 数据库）/,/使用地：/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '基础信息（Maxmind 数据库）' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 4. IP类型属性
-ip_type = re.search(r"二、IP类型属性.*?公司类型：.*?(?:\n\n|$)", log_content, re.DOTALL)
-if ip_type:
-    sections.append(ip_type.group(0))
-else:
-    print("警告：未匹配到 'IP类型属性' 部分。")
-
+if grep -A 50 "二、IP类型属性" "$LOG_FILE" | sed -n '/二、IP类型属性/,/公司类型：/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 'IP类型属性' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 5. 风险评分
-risk_score = re.search(r"三、风险评分.*?DB-IP：.*?(?:\n\n|$)", log_content, re.DOTALL)
-if risk_score:
-    sections.append(risk_score.group(0))
-else:
-    print("警告：未匹配到 '风险评分' 部分。")
-
+if grep -A 50 "三、风险评分" "$LOG_FILE" | sed -n '/三、风险评分/,/DB-IP：/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '风险评分' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 6. 风险因子
-risk_factor = re.search(r"四、风险因子.*?滥用：.*?(?:\n\n|$)", log_content, re.DOTALL)
-if risk_factor:
-    sections.append(risk_factor.group(0))
-else:
-    print("警告：未匹配到 '风险因子' 部分。")
-
+if grep -A 50 "四、风险因子" "$LOG_FILE" | sed -n '/四、风险因子/,/滥用：/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '风险因子' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 7. 流媒体及AI服务解锁检测
-streaming = re.search(r"五、流媒体及AI服务解锁检测.*?地区：.*?(?:\n\n|$)", log_content, re.DOTALL)
-if streaming:
-    sections.append(streaming.group(0))
-else:
-    print("警告：未匹配到 '流媒体及AI服务解锁检测' 部分。")
-
+if grep -A 100 "五、流媒体及AI服务解锁检测" "$LOG_FILE" | sed -n '/五、流媒体及AI服务解锁检测/,/地区：/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '流媒体及AI服务解锁检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 8. 邮局连通性及黑名单检测
-mail_blacklist = re.search(r"六、邮局连通性及黑名单检测.*?黑名单 \d+.*?(?:\n\n|$)", log_content, re.DOTALL)
-if mail_blacklist:
-    sections.append(mail_blacklist.group(0))
-else:
-    print("警告：未匹配到 '邮局连通性及黑名单检测' 部分。")
-
+if grep -A 50 "六、邮局连通性及黑名单检测" "$LOG_FILE" | sed -n '/六、邮局连通性及黑名单检测/,/黑名单 \d\+/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '邮局连通性及黑名单检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 9. 北京/上海/广州/成都 三网回程线路测试
-backtrace = re.search(r"项目地址: https://github.com/zhanghanyun/backtrace.*?2025/\d{2}/\d{2} \d{2}:\d{2}:\d{2} 测试完成!.*?(?:\n\n|$)", log_content, re.DOTALL)
-if backtrace:
-    sections.append(backtrace.group(0))
-else:
-    print("警告：未匹配到 '三网回程线路测试' 部分。")
-
+if grep -A 200 "项目地址: https://github.com/zhanghanyun/backtrace" "$LOG_FILE" | sed -n '/项目地址: https:\/\/github.com\/zhanghanyun\/backtrace/,/2025\/[0-1][0-9]\/[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] 测试完成!/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '三网回程线路测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 10. 大陆三网+教育网 IPv4 单线程测速
-speedtest = re.search(r"大陆三网\+教育网 IPv4 单线程测速.*?电信 江苏南京 5G.*?(?:\n\n|$)", log_content, re.DOTALL)
-if speedtest:
-    sections.append(speedtest.group(0))
-else:
-    print("警告：未匹配到 '大陆三网+教育网 IPv4 单线程测速' 部分。")
-
+if grep -A 100 "大陆三网\+教育网 IPv4 单线程测速" "$LOG_FILE" | sed -n '/大陆三网\+教育网 IPv4 单线程测速/,/电信 江苏南京 5G/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 '大陆三网+教育网 IPv4 单线程测速' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 11. Multination 流媒体解锁检测
-multination = re.search(r"============\[ Multination \]============.*?---CA---.*?Crave:.*?(?:\n\n|$)", log_content, re.DOTALL)
-if multination:
-    sections.append(multination.group(0))
-else:
-    print("警告：未匹配到 'Multination 流媒体解锁检测' 部分。")
-
+if grep -A 200 "============\[ Multination \]============" "$LOG_FILE" | sed -n '/============\[ Multination \]============/,/Crave:/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 'Multination 流媒体解锁检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 # 12. Bench.sh 性能测试
-bench = re.search(r"-------------------- A Bench.sh Script By Teddysun -------------------.*?Timestamp :.*?(?:\n\n|$)", log_content, re.DOTALL)
-if bench:
-    sections.append(bench.group(0))
-else:
-    print("警告：未匹配到 'Bench.sh 性能测试' 部分。")
+if grep -A 200 "-------------------- A Bench.sh Script By Teddysun -------------------" "$LOG_FILE" | sed -n '/-------------------- A Bench.sh Script By Teddysun -------------------/,/Timestamp :/p' >> "$EXTRACT_LOG"; then
+    echo "" >> "$EXTRACT_LOG"
+else
+    echo "警告：未匹配到 'Bench.sh 性能测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+fi
 
 # 检查是否提取到内容
-if not sections:
-    print("错误：未从日志文件中提取到任何指定部分，请检查日志内容或正则表达式。")
-    exit(1)
+if [ ! -s "$EXTRACT_LOG" ]; then
+    echo "错误：未从日志文件中提取到任何指定部分，请检查日志内容。" >> "$EXTRACT_ERROR_LOG"
+    exit 1
+fi
 
-# 生成新 HTML
-extracted_content = "\n".join(sections)
-html_template = f"""
+# 生成提取 HTML 报告
+cat <<EOF > "$EXTRACTED_REPORT_FILE"
 <html>
 <head>
-    <title>Extracted VPS Test Report ({timestamp})</title>
+    <title>Extracted VPS Test Report (${TIMESTAMP})</title>
     <meta charset="UTF-8">
     <style>
-        body {{
+        body {
             font-family: 'Noto Sans CJK SC', monospace;
             background-color: #2e2e2e;
             color: #ffffff;
             margin: 10px;
             padding: 10px;
             font-size: 10px;
-        }}
-        pre {{
+        }
+        pre {
             background-color: #1a1a1a;
             padding: 10px;
             border-radius: 5px;
             white-space: pre-wrap;
             word-wrap: break-word;
-        }}
-        h1 {{
+        }
+        h1 {
             color: #f0c674;
             font-size: 14px;
-        }}
+        }
     </style>
 </head>
 <body>
-    <h1>提取的 VPS 测试报告 ({timestamp})</h1>
+    <h1>提取的 VPS 测试报告 (${TIMESTAMP})</h1>
     <pre>
-{extracted_content}
+$(cat "$EXTRACT_LOG")
     </pre>
 </body>
 </html>
-"""
-with open(new_html_path, "w", encoding="utf-8") as f:
-    f.write(html_template)
-print(f"提取的 HTML 报告已生成：{new_html_path}")
+EOF
+echo "提取的 HTML 报告已生成：$EXTRACTED_REPORT_FILE" >&2
 
 # 检查 wkhtmltoimage 是否可用
-if not os.system("wkhtmltoimage --version >/dev/null 2>&1"):
-    # 生成图片报告
-    if os.system(f"wkhtmltoimage --width 600 --quality 90 {new_html_path} {new_image_path} 2>/dev/null") == 0:
-        print(f"提取的图片报告已生成：{new_image_path}")
-    else:
-        print("生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。")
-        exit(1)
-else:
-    print("wkhtmltoimage 未安装，跳过提取图片报告生成。")
-    exit(1)
+if command -v wkhtmltoimage &>/dev/null; then
+    # 生成提取图片报告
+    echo "正在生成提取的图片报告..." >&2
+    if wkhtmltoimage --width 600 --quality 90 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"; then
+        echo "提取的图片报告已生成：$EXTRACTED_IMAGE_FILE" >&2
+    else
+        echo "生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。" >> "$EXTRACT_ERROR_LOG"
+        exit 1
+    fi
+else
+    echo "wkhtmltoimage 未安装，跳过提取图片报告生成。" >> "$EXTRACT_ERROR_LOG"
+    exit 1
+fi
 
-# 检查 Pillow 是否可用
-try:
-    from PIL import Image
-    # 压缩图片（Pillow）
-    try:
-        img = Image.open(new_image_path)
-        width = 600
-        height = int((width / img.width) * img.height)
-        img_resized = img.resize((width, height), Image.LANCZOS)
-        img_resized.save(compressed_image_path, "PNG", optimize=True, quality=50)
-        print(f"Pillow 压缩后的提取图片报告已生成：{compressed_image_path}")
-    except Exception as e:
-        print(f"Pillow 压缩图片失败：{e}")
-except ImportError:
-    print("Pillow 未安装，跳过 Pillow 压缩。")
-
-# 检查 pngquant 是否可用并进一步压缩
-if os.system("pngquant --version >/dev/null 2>&1") == 0:
-    if os.system(f"pngquant --quality=40-60 --strip {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
-        print(f"pngquant 压缩后的提取图片报告已生成：{compressed_image_path}")
-    else:
-        print("pngquant 压缩失败，请检查 pngquant 是否正确安装。")
-else:
-    print("pngquant 未安装，跳过 pngquant 压缩。")
-EOF
+# 检查 pngquant 是否可用并压缩
+if command -v pngquant &>/dev/null; then
+    echo "正在压缩提取的图片报告..." >&2
+    if pngquant --quality=40-60 --strip "$EXTRACTED_IMAGE_FILE" -o "$COMPRESSED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"; then
+        echo "压缩后的提取图片报告已生成：$COMPRESSED_IMAGE_FILE" >&2
+    else
+        echo "pngquant 压缩失败，请检查 pngquant 是否正确安装。" >> "$EXTRACT_ERROR_LOG"
+    fi
+else
+    echo "pngquant 未安装，跳过压缩，复制未压缩的图片报告。" >> "$EXTRACT_ERROR_LOG"
+    cp "$EXTRACTED_IMAGE_FILE" "$COMPRESSED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"
+fi
 
 # 检查提取报告是否生成
 if [ -f "$EXTRACTED_IMAGE_FILE" ]; then
-    echo "提取图片报告存在：$EXTRACTED_IMAGE_FILE"
-    ls -lh "$EXTRACTED_IMAGE_FILE"
+    echo "提取图片报告存在：$EXTRACTED_IMAGE_FILE" >&2
+    ls -lh "$EXTRACTED_IMAGE_FILE" >&2
 else
-    echo "提取图片报告未生成，请检查 /root/extract_report_error.log"
+    echo "提取图片报告未生成，请检查 $EXTRACT_ERROR_LOG" >&2
 fi
 if [ -f "$COMPRESSED_IMAGE_FILE" ]; then
-    echo "压缩后的提取图片报告存在：$COMPRESSED_IMAGE_FILE"
-    ls -lh "$COMPRESSED_IMAGE_FILE"
+    echo "压缩后的提取图片报告存在：$COMPRESSED_IMAGE_FILE" >&2
+    ls -lh "$COMPRESSED_IMAGE_FILE" >&2
 else
-    echo "压缩后的提取图片报告未生成，请检查 /root/extract_report_error.log"
+    echo "压缩后的提取图片报告未生成，请检查 $EXTRACT_ERROR_LOG" >&2
 fi
 if [ -f "$EXTRACTED_REPORT_FILE" ]; then
-    echo "提取的 HTML 报告存在：$EXTRACTED_REPORT_FILE"
-    ls -lh "$EXTRACTED_REPORT_FILE"
+    echo "提取的 HTML 报告存在：$EXTRACTED_REPORT_FILE" >&2
+    ls -lh "$EXTRACTED_REPORT_FILE" >&2
 else
-    echo "提取的 HTML 报告未生成，请检查 /root/extract_report_error.log"
+    echo "提取的 HTML 报告未生成，请检查 $EXTRACT_ERROR_LOG" >&2
 fi
 
 # 设置文件权限
@@ -804,7 +745,7 @@ chmod 644 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" "$COMPRESSED_IMAGE_FI
 
 # 清理旧报告（保留最近 5 次）
 ls -t /root/extracted_report_*.{html,png} 2>/dev/null | tail -n +11 | xargs -I {} rm -f {}
-echo "已清理旧的提取报告，保留最近 5 次。"
+echo "已清理旧的提取报告，保留最近 5 次。" >&2
 
 # 启动 Web 服务器
 PORT=8000
