@@ -60,7 +60,16 @@ if [ ! -f "$FIRST_RUN_FLAG" ]; then
         fi
         if ! python3 -c "import PIL" &>/dev/null; then
             echo "Pillow 未安装，正在安装..."
-            sudo pip3 install pillow
+            if [[ -f /etc/debian_version ]]; then
+                sudo apt install -y python3-pil
+            elif [[ -f /etc/redhat-release ]]; then
+                sudo pip3 install pillow
+            fi
+            if ! python3 -c "import PIL" &>/dev/null; then
+                echo "Pillow 安装失败，请手动安装：sudo pip3 install pillow"
+            else
+                echo "Pillow 安装成功。"
+            fi
         else
             echo "Pillow 已安装。"
         fi
@@ -392,7 +401,7 @@ echo "公司域名: $company_domain"
 echo "公司类型: $company_type"
 echo -e "\n\n备注："
 echo "1. ASN 编号、名称、路由和类型字段仅在付费版本中可用。"
-echo "2. 公司 Twain信息（名称、域名、类型）仅在付费版本中可用。"
+echo "2. 公司信息（名称、域名、类型）仅在付费版本中可用。"
 
 # IP 欺诈风险检测
 API_KEY="89c1e8dc1272cb7b1e1f162cbdcc0cf4434a06c41b4ab7f8b7f9497c0cd56e9f"
@@ -583,7 +592,6 @@ python3 - <<'EOF' 2> /root/extract_report_error.log
 import re
 import os
 from datetime import datetime
-from PIL import Image
 
 # 输入日志文件
 log_path = "/root/test_log.txt"
@@ -746,7 +754,8 @@ else:
     exit(1)
 
 # 检查 Pillow 是否可用
-if os.system("python3 -c 'import PIL' >/dev/null 2>&1") == 0:
+try:
+    from PIL import Image
     # 压缩图片（Pillow）
     try:
         img = Image.open(new_image_path)
@@ -757,7 +766,7 @@ if os.system("python3 -c 'import PIL' >/dev/null 2>&1") == 0:
         print(f"Pillow 压缩后的提取图片报告已生成：{compressed_image_path}")
     except Exception as e:
         print(f"Pillow 压缩图片失败：{e}")
-else:
+except ImportError:
     print("Pillow 未安装，跳过 Pillow 压缩。")
 
 # 检查 pngquant 是否可用并进一步压缩
