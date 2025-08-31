@@ -119,7 +119,7 @@ check_dns() {
         fi
     fi
 }
-check_dns || echo "警告：DNS 配置有问题，可能影响 nexttrace 测试。"
+check_dns || echo "警告：DNS 配置有问题，可能影响 nexttrace 测试."
 
 # 内部脚本内容
 start_time=$(date +%s)
@@ -129,9 +129,9 @@ if ! grep -q "alias sn=" ~/.bashrc; then
     echo "正在为 sn 设置快捷命令..."
     echo "alias sn='bash <(curl -sL https://raw.githubusercontent.com/sinian-liu/VPStest/main/system_info.sh)'" >> ~/.bashrc
     source ~/.bashrc
-    echo "快捷命令 sn 已设置。"
+    echo "快捷命令 sn 已设置."
 else
-    echo "快捷命令 sn 已经存在。"
+    echo "快捷命令 sn 已经存在."
 fi
 
 # 设置主机名
@@ -155,7 +155,7 @@ is_debian_or_ubuntu() {
         echo "检测到Debian或Ubuntu系统，继续开启BBR..."
         return 0
     else
-        echo "此系统不是Debian或Ubuntu，跳过BBR设置。"
+        echo "此系统不是Debian或Ubuntu，跳过BBR设置."
         return 1
     fi
 }
@@ -191,7 +191,7 @@ EOF'
     sudo systemctl daemon-reload
     sudo systemctl start iperf3
     sudo systemctl enable iperf3
-    echo "iperf3 服务已配置为自动启动。"
+    echo "iperf3 服务已配置为自动启动."
 }
 enable_iperf3_autostart
 
@@ -375,7 +375,7 @@ echo "公司域名: $company_domain"
 echo "公司类型: $company_type"
 echo -e "\n\n备注："
 echo "1. ASN 编号、名称、路由和类型字段仅在付费版本中可用。"
-echo "2. 公司信息（名称、域名、类型）仅在付费版本中可用。"
+echo "2. 公司信息（名称、域名、类型）仅在付费版本中可用."
 
 # IP 欺诈风险检测
 API_KEY="89c1e8dc1272cb7b1e1f162cbdcc0cf4434a06c41b4ab7f8b7f9497c0cd56e9f"
@@ -397,7 +397,7 @@ get_fraud_details() {
     SCORE=$(echo "$RESPONSE" | jq -r '.score // "null"')
     RISK=$(echo "$RESPONSE" | jq -r '.risk // "unknown"')
     if [[ "$SCORE" == "null" || -z "$SCORE" ]]; then
-        echo "API响应不包含有效得分，无法继续检测。"
+        echo "API响应不包含有效得分，无法继续检测."
         exit 1
     fi
     echo "$SCORE $RISK"
@@ -410,13 +410,13 @@ display_fraud_score() {
     echo -e "\n检测时间: $CURRENT_TIME"
     echo -e "此 IP ($IP) 的欺诈得分为 $SCORE，风险等级评估：\c"
     if [[ "$RISK" == "low" ]]; then
-        echo -e "${GREEN}低风险${NC}。"
+        echo -e "${GREEN}低风险${NC}."
     elif [[ "$RISK" == "medium" ]]; then
-        echo -e "${YELLOW}中等风险${NC}。"
+        echo -e "${YELLOW}中等风险${NC}."
     elif [[ "$RISK" == "high" ]]; then
         echo -e "${RED}高风险！${NC}"
     else
-        echo -e "\033[34m未知风险${NC}。"
+        echo -e "\033[34m未知风险${NC}."
     fi
 }
 check_dependencies() {
@@ -425,7 +425,7 @@ check_dependencies() {
         . /etc/os-release
         OS=$ID
     else
-        echo "无法检测系统类型，请手动安装 curl 和 jq 后重试。"
+        echo "无法检测系统类型，请手动安装 curl 和 jq 后重试."
         exit 1
     fi
     if ! command -v curl &> /dev/null; then
@@ -435,11 +435,11 @@ check_dependencies() {
         elif [[ "$OS" == "centos" || "$OS" == "rocky" || "$OS" == "almalinux" ]]; then
             sudo yum install -y curl
         else
-            echo "不支持的系统类型：$OS，请手动安装 curl 后重试。"
+            echo "不支持的系统类型：$OS，请手动安装 curl 后重试."
             exit 1
         fi
     else
-        echo "curl 已安装，跳过。"
+        echo "curl 已安装，跳过."
     fi
     if ! command -v jq &> /dev/null; then
         echo "未检测到 jq，正在安装..."
@@ -448,11 +448,11 @@ check_dependencies() {
         elif [[ "$OS" == "centos" || "$OS" == "rocky" || "$OS" == "almalinux" ]]; then
             sudo yum install -y jq
         else
-            echo "不支持的系统类型：$OS，请手动安装 jq 后重试。"
+            echo "不支持的系统类型：$OS，请手动安装 jq 后重试."
             exit 1
         fi
     else
-        echo "jq 已安装，跳过。"
+        echo "jq 已安装，跳过."
     fi
 }
 check_dependencies
@@ -466,19 +466,19 @@ display_fraud_score "$IP" "$FRAUD_SCORE" "$RISK_LEVEL"
 # 执行外部测试脚本
 echo -e "\n${YELLOW}执行外部测试脚本${NC}"
 echo "正在执行 IP 质量检测..."
-bash <(curl -Ls IP.Check.Place) <<< "y" 2>&1 || echo "IP.Check.Place 执行失败"
+bash <(curl -Ls IP.Check.Place) <<< "y" 2>>"$EXTRACT_ERROR_LOG" || echo "IP.Check.Place 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行第一个三网回程线路测试..."
-curl https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -sSf | sh 2>&1 || echo "backtrace 执行失败"
+curl https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -sSf | sh 2>>"$EXTRACT_ERROR_LOG" || echo "backtrace 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行第二个三网回程线路测试..."
-curl https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh | bash 2>&1 || echo "mtr_trace 执行失败"
+curl https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "mtr_trace 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行三网+教育网 IPv4 单线程测速..."
-bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh) <<< "2" 2>&1 || echo "speedtest.sh 执行失败"
+bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh) <<< "2" 2>>"$EXTRACT_ERROR_LOG" || echo "speedtest.sh 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行流媒体平台及游戏区域限制测试..."
-bash <(curl -L -s check.unlock.media) <<< "66" 2>&1 || echo "check.unlock.media 执行失败"
+bash <(curl -L -s check.unlock.media) <<< "66" 2>>"$EXTRACT_ERROR_LOG" || echo "check.unlock.media 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行全国五网ISP路由回程测试..."
-curl -s https://nxtrace.org/nt | bash && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace 2>&1 || echo "nexttrace 执行失败"
+curl -s https://nxtrace.org/nt | bash -s && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace 2>>"$EXTRACT_ERROR_LOG" || echo "nexttrace 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行 Bench 性能测试..."
-curl -Lso- bench.sh | bash 2>&1 || echo "bench.sh 执行失败"
+curl -Lso- bench.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "bench.sh 执行失败" >> "$EXTRACT_ERROR_LOG"
 echo ""
 
 # 显示测试完成提示
@@ -493,14 +493,10 @@ elapsed_time=$((end_time - start_time))
 minutes=$((elapsed_time / 60))
 seconds=$((elapsed_time % 60))
 if [ $minutes -gt 0 ]; then
-    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${minutes} 分钟 ${seconds} 秒${NC}，感谢使用本脚本。"
+    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${minutes} 分钟 ${seconds} 秒${NC}，感谢使用本脚本."
 else
-    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${seconds} 秒${NC}，感谢使用本脚本。"
+    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${seconds} 秒${NC}，感谢使用本脚本."
 fi
-echo -e "${YELLOW}下次直接输入快捷命令即可再次启动：${NC}\033[31msn\033[0m"
-
-# 清理日志中的 ANSI 颜色代码
-sed -i 's/\x1B\[[0-9;]*[mK]//g' "$LOG_FILE"
 
 # 生成报告文件名（带时间戳）
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -554,12 +550,12 @@ if command -v wkhtmltoimage &>/dev/null; then
     wkhtmltoimage --width 1200 --quality 90 "$REPORT_FILE" "$IMAGE_FILE" 2>/dev/null
     if [ -f "$IMAGE_FILE" ]; then
         echo "完整图片报告已生成：$IMAGE_FILE"
-        echo "注意：完整图片报告文件较大（约400MB），建议使用压缩后的提取报告。"
+        echo "注意：完整图片报告文件较大（约400MB），建议使用压缩后的提取报告."
     else
-        echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装。" >&2
+        echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装." >&2
     fi
 else
-    echo "wkhtmltoimage 未安装，跳过完整图片报告生成。" >&2
+    echo "wkhtmltoimage 未安装，跳过完整图片报告生成." >&2
 fi
 
 # 生成提取报告
@@ -569,88 +565,135 @@ touch "$EXTRACT_ERROR_LOG"
 
 # 检查日志文件
 if [ ! -f "$LOG_FILE" ]; then
-    echo "错误：日志文件 $LOG_FILE 不存在。请先运行测试脚本生成日志。" >> "$EXTRACT_ERROR_LOG"
+    echo "错误：日志文件 $LOG_FILE 不存在。请先运行测试脚本生成日志." >> "$EXTRACT_ERROR_LOG"
     exit 1
 fi
 
-# 提取指定部分
+# 提取指定部分并转换颜色
 > "$EXTRACT_LOG"
+# 颜色转换函数
+convert_ansi_to_html() {
+    local line="$1"
+    # 替换 ANSI 颜色代码
+    line="${line//\\033\[1;33m/<span style='color: #f0c674'>}"  # 黄色
+    line="${line//\\033\[0;32m/<span style='color: #00ff00'>}"  # 绿色
+    line="${line//\\033\[0;31m/<span style='color: #ff0000'>}"  # 红色
+    line="${line//\\033\[0m/<\/span>}"                        # 重置
+    echo "$line"
+}
+
 # 1. 系统信息查询
-if grep -A 50 "系统信息查询" "$LOG_FILE" | sed -n '/系统信息查询/,/运行时长:/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "系统信息查询" "$LOG_FILE" | sed -n '/系统信息查询/,/运行时长:/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '系统信息查询' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '系统信息查询' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 2. 硬盘 I/O 性能测试
-if grep -A 50 "硬盘 I/O 性能测试" "$LOG_FILE" | sed -n '/硬盘 I/O 性能测试/,/测试数据不是百分百准确，以官方宣称为主。/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "硬盘 I/O 性能测试" "$LOG_FILE" | sed -n '/硬盘 I/O 性能测试/,/测试数据不是百分百准确，以官方宣称为主。/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '硬盘 I/O 性能测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '硬盘 I/O 性能测试' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 3. 基础信息（Maxmind 数据库）
-if grep -A 50 "一、基础信息（Maxmind 数据库）" "$LOG_FILE" | sed -n '/一、基础信息（Maxmind 数据库）/,/使用地：/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "一、基础信息（Maxmind 数据库）" "$LOG_FILE" | sed -n '/一、基础信息（Maxmind 数据库）/,/使用地：/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '基础信息（Maxmind 数据库）' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '基础信息（Maxmind 数据库）' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 4. IP类型属性
-if grep -A 50 "二、IP类型属性" "$LOG_FILE" | sed -n '/二、IP类型属性/,/公司类型：/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "二、IP类型属性" "$LOG_FILE" | sed -n '/二、IP类型属性/,/公司类型：/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 'IP类型属性' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 'IP类型属性' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 5. 风险评分
-if grep -A 50 "三、风险评分" "$LOG_FILE" | sed -n '/三、风险评分/,/DB-IP：/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "三、风险评分" "$LOG_FILE" | sed -n '/三、风险评分/,/DB-IP：/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '风险评分' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '风险评分' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 6. 风险因子
-if grep -A 50 "四、风险因子" "$LOG_FILE" | sed -n '/四、风险因子/,/滥用：/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "四、风险因子" "$LOG_FILE" | sed -n '/四、风险因子/,/滥用：/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '风险因子' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '风险因子' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 7. 流媒体及AI服务解锁检测
-if grep -A 100 "五、流媒体及AI服务解锁检测" "$LOG_FILE" | sed -n '/五、流媒体及AI服务解锁检测/,/地区：/p' >> "$EXTRACT_LOG"; then
+if grep -A 100 "五、流媒体及AI服务解锁检测" "$LOG_FILE" | sed -n '/五、流媒体及AI服务解锁检测/,/地区：/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '流媒体及AI服务解锁检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '流媒体及AI服务解锁检测' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 8. 邮局连通性及黑名单检测
-if grep -A 50 "六、邮局连通性及黑名单检测" "$LOG_FILE" | sed -n '/六、邮局连通性及黑名单检测/,/黑名单 \d\+/p' >> "$EXTRACT_LOG"; then
+if grep -A 50 "六、邮局连通性及黑名单检测" "$LOG_FILE" | sed -n '/六、邮局连通性及黑名单检测/,/黑名单 \d\+/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '邮局连通性及黑名单检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '邮局连通性及黑名单检测' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 9. 北京/上海/广州/成都 三网回程线路测试
-if grep -A 200 "项目地址: https://github.com/zhanghanyun/backtrace" "$LOG_FILE" | sed -n '/项目地址: https:\/\/github.com\/zhanghanyun\/backtrace/,/2025\/[0-1][0-9]\/[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] 测试完成!/p' >> "$EXTRACT_LOG"; then
+if grep -A 200 "项目地址: https://github.com/zhanghanyun/backtrace" "$LOG_FILE" | sed -n '/项目地址: https:\/\/github.com\/zhanghanyun\/backtrace/,/2025\/[0-1][0-9]\/[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] 测试完成!/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '三网回程线路测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '三网回程线路测试' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 10. 大陆三网+教育网 IPv4 单线程测速
-if grep -A 100 "大陆三网\+教育网 IPv4 单线程测速" "$LOG_FILE" | sed -n '/大陆三网\+教育网 IPv4 单线程测速/,/电信 江苏南京 5G/p' >> "$EXTRACT_LOG"; then
+if grep -A 200 "大陆三网+教育网 IPv4 单线程测速" "$LOG_FILE" | sed -n '/大陆三网\+教育网 IPv4 单线程测速/,/电信 江苏南京 5G/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 '大陆三网+教育网 IPv4 单线程测速' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 '大陆三网+教育网 IPv4 单线程测速' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 11. Multination 流媒体解锁检测
-if grep -A 200 "============\[ Multination \]============" "$LOG_FILE" | sed -n '/============\[ Multination \]============/,/Crave:/p' >> "$EXTRACT_LOG"; then
+if grep -A 200 "============\[ Multination \]============" "$LOG_FILE" | sed -n '/============\[ Multination \]============/,/Crave:/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 'Multination 流媒体解锁检测' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 'Multination 流媒体解锁检测' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 # 12. Bench.sh 性能测试
-if grep -A 200 "-------------------- A Bench.sh Script By Teddysun -------------------" "$LOG_FILE" | sed -n '/-------------------- A Bench.sh Script By Teddysun -------------------/,/Timestamp :/p' >> "$EXTRACT_LOG"; then
+if grep -A 200 "-------------------- A Bench.sh Script By Teddysun -------------------" "$LOG_FILE" | sed -n '/-------------------- A Bench.sh Script By Teddysun -------------------/,/Timestamp :/p' | while read -r line; do
+    converted_line=$(convert_ansi_to_html "$line")
+    echo "$converted_line" >> "$EXTRACT_LOG"
+done; then
     echo "" >> "$EXTRACT_LOG"
 else
-    echo "警告：未匹配到 'Bench.sh 性能测试' 部分。" >> "$EXTRACT_ERROR_LOG"
+    echo "警告：未匹配到 'Bench.sh 性能测试' 部分." >> "$EXTRACT_ERROR_LOG"
 fi
 
 # 检查是否提取到内容
 if [ ! -s "$EXTRACT_LOG" ]; then
-    echo "错误：未从日志文件中提取到任何指定部分，请检查日志内容。" >> "$EXTRACT_ERROR_LOG"
+    echo "错误：未从日志文件中提取到任何指定部分，请检查日志内容." >> "$EXTRACT_ERROR_LOG"
     exit 1
 fi
 
@@ -675,10 +718,15 @@ cat <<EOF > "$EXTRACTED_REPORT_FILE"
             border-radius: 5px;
             white-space: pre-wrap;
             word-wrap: break-word;
+            max-height: none;
+            overflow: auto;
         }
         h1 {
             color: #f0c674;
             font-size: 14px;
+        }
+        span {
+            white-space: pre;
         }
     </style>
 </head>
@@ -692,18 +740,17 @@ $(cat "$EXTRACT_LOG")
 EOF
 echo "提取的 HTML 报告已生成：$EXTRACTED_REPORT_FILE" >&2
 
-# 检查 wkhtmltoimage 是否可用
+# 生成提取图片报告
 if command -v wkhtmltoimage &>/dev/null; then
-    # 生成提取图片报告
     echo "正在生成提取的图片报告..." >&2
-    if wkhtmltoimage --width 600 --quality 90 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"; then
+    if wkhtmltoimage --width 600 --height 0 --zoom 2 --quality 90 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"; then
         echo "提取的图片报告已生成：$EXTRACTED_IMAGE_FILE" >&2
     else
-        echo "生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。" >> "$EXTRACT_ERROR_LOG"
+        echo "生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装." >> "$EXTRACT_ERROR_LOG"
         exit 1
     fi
 else
-    echo "wkhtmltoimage 未安装，跳过提取图片报告生成。" >> "$EXTRACT_ERROR_LOG"
+    echo "wkhtmltoimage 未安装，跳过提取图片报告生成." >> "$EXTRACT_ERROR_LOG"
     exit 1
 fi
 
@@ -713,10 +760,10 @@ if command -v pngquant &>/dev/null; then
     if pngquant --quality=40-60 --strip "$EXTRACTED_IMAGE_FILE" -o "$COMPRESSED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"; then
         echo "压缩后的提取图片报告已生成：$COMPRESSED_IMAGE_FILE" >&2
     else
-        echo "pngquant 压缩失败，请检查 pngquant 是否正确安装。" >> "$EXTRACT_ERROR_LOG"
+        echo "pngquant 压缩失败，请检查 pngquant 是否正确安装." >> "$EXTRACT_ERROR_LOG"
     fi
 else
-    echo "pngquant 未安装，跳过压缩，复制未压缩的图片报告。" >> "$EXTRACT_ERROR_LOG"
+    echo "pngquant 未安装，跳过压缩，复制未压缩的图片报告." >> "$EXTRACT_ERROR_LOG"
     cp "$EXTRACTED_IMAGE_FILE" "$COMPRESSED_IMAGE_FILE" 2>>"$EXTRACT_ERROR_LOG"
 fi
 
@@ -745,7 +792,7 @@ chmod 644 "$EXTRACTED_REPORT_FILE" "$EXTRACTED_IMAGE_FILE" "$COMPRESSED_IMAGE_FI
 
 # 清理旧报告（保留最近 5 次）
 ls -t /root/extracted_report_*.{html,png} 2>/dev/null | tail -n +11 | xargs -I {} rm -f {}
-echo "已清理旧的提取报告，保留最近 5 次。" >&2
+echo "已清理旧的提取报告，保留最近 5 次." >&2
 
 # 启动 Web 服务器
 PORT=8000
@@ -768,5 +815,5 @@ if [[ -n "$PUBLIC_IP" ]]; then
     echo "提取的图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/extracted_report_${TIMESTAMP}.png"
     echo "压缩后的提取图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/extracted_report_compressed_${TIMESTAMP}.png"
 else
-    echo "无法获取公网 IP，报告已生成在 $REPORT_FILE, $IMAGE_FILE, $EXTRACTED_REPORT_FILE, $EXTRACTED_IMAGE_FILE, $COMPRESSED_IMAGE_FILE，请手动下载。"
+    echo "无法获取公网 IP，报告已生成在 $REPORT_FILE, $IMAGE_FILE, $EXTRACTED_REPORT_FILE, $EXTRACTED_IMAGE_FILE, $COMPRESSED_IMAGE_FILE，请手动下载."
 fi
