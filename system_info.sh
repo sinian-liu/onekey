@@ -92,10 +92,12 @@ done &
 # 捕获所有输出到日志文件
 LOG_FILE="/root/test_log.txt"
 rm -f "$LOG_FILE"
-script -q -c "bash -c '$(cat <<'EOF'
+exec > >(tee -a "$LOG_FILE") 2>&1
+
 # 内部脚本内容
 # 记录开始时间
 start_time=$(date +%s)
+
 # 设置快捷命令
 if ! grep -q "alias sn=" ~/.bashrc; then
     echo "正在为 sn 设置快捷命令..."
@@ -105,18 +107,22 @@ if ! grep -q "alias sn=" ~/.bashrc; then
 else
     echo "快捷命令 sn 已经存在。"
 fi
+
 # 设置主机名
 NEW_HOSTNAME="www.1373737.xyz"
 sudo hostnamectl set-hostname "$NEW_HOSTNAME"
 sudo sed -i "s/127.0.1.1.*/127.0.1.1 $NEW_HOSTNAME/" /etc/hosts
 echo "主机名已成功修改为："
 hostnamectl
+
 # 设置时区
 set_timezone_to_shanghai() {
     echo "正在将系统时区设置为中国上海..."
     sudo timedatectl set-timezone Asia/Shanghai
     echo "当前系统时区为：$(timedatectl | grep 'Time zone' || echo 'N/A')"
 }
+set_timezone_to_shanghai
+
 # 检测系统类型
 is_debian_or_ubuntu() {
     if [[ -f /etc/debian_version ]]; then
@@ -127,6 +133,7 @@ is_debian_or_ubuntu() {
         return 1
     fi
 }
+
 # 开启BBR
 enable_bbr() {
     if is_debian_or_ubuntu; then
@@ -138,6 +145,8 @@ enable_bbr() {
         lsmod | grep bbr
     fi
 }
+enable_bbr
+
 # 配置 iperf3 自动启动
 enable_iperf3_autostart() {
     echo "正在配置 iperf3 为自动启动守护进程..."
@@ -158,13 +167,17 @@ EOF'
     sudo systemctl enable iperf3
     echo "iperf3 服务已配置为自动启动。"
 }
-# 执行系统设置
-set_timezone_to_shanghai
-enable_bbr
 enable_iperf3_autostart
+
 # 颜色定义
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
 NC='\033[0m'
+_yellow() { echo -e "${YELLOW}$1${NC}"; }
+_red() { echo -e "${RED}$1${NC}"; }
+_green() { echo -e "${GREEN}$1${NC}"; }
+
 # 系统信息
 hostname=$(hostname)
 domain=$(hostname -d 2>/dev/null || echo "N/A")
@@ -179,13 +192,15 @@ load_avg=$(uptime | awk -F'load average: ' '{print $2}' 2>/dev/null || echo "N/A
 memory_usage=$(free -m | awk '/Mem:/ {printf "%.2f/%.2f MB (%.2f%%)", $3, $2, $3/$2 * 100}' 2>/dev/null || echo "N/A")
 swap_usage=$(free -m | awk '/Swap:/ {if ($2 > 0) printf "%.2f/%.2f MB (%.2f%%)", $3, $2, $3/$2 * 100; else print "N/A"}' 2>/dev/null || echo "N/A")
 disk_usage=$(df -h / | awk 'NR==2 {print $3 "/" $2 " (" $5 ")"}' 2>/dev/null || echo "N/A")
+
+# 网络流量计算
 get_network_traffic() {
     local bytes=$1
-    if [ -n "$bytes" ] && (( bytes > 1024*1024*1024 )); then
+    if [ -n "$bytes" ] && [ "$bytes" -gt $((1024*1024*1024)) ]; then
         echo "$(awk "BEGIN {printf \"%.2f GB\", $bytes/1024/1024/1024}")"
-    elif [ -n "$bytes" ] && (( bytes > 1024*1024 )); then
+    elif [ -n "$bytes" ] && [ "$bytes" -gt $((1024*1024)) ]; then
         echo "$(awk "BEGIN {printf \"%.2f MB\", $bytes/1024/1024}")"
-    elif [ -n "$bytes" ]; then
+    elif [ -n "$bytes" ] && [ "$bytes" -gt 0 ]; then
         echo "$(awk "BEGIN {printf \"%.2f KB\", $bytes/1024}")"
     else
         echo "0 KB"
@@ -206,11 +221,13 @@ uptime_seconds=$(cat /proc/uptime | awk '{print int($1)}' 2>/dev/null || echo 0)
 uptime_days=$((uptime_seconds / 86400))
 uptime_hours=$(( (uptime_seconds % 86400) / 3600 ))
 uptime_minutes=$(( (uptime_seconds % 3600) / 60 ))
-if (( uptime_days > 0 )); then
+if [ $uptime_days -gt 0 ]; then
     uptime_formatted="${uptime_days}天 ${uptime_hours}时 ${uptime_minutes}分"
 else
     uptime_formatted="${uptime_hours}时 ${uptime_minutes}分"
 fi
+
+# 输出系统信息
 echo -e "\n${YELLOW}系统信息查询${NC}"
 echo "-------------"
 echo "主机名: $hostname.$domain"
@@ -240,16 +257,11 @@ echo "地理位置: $location"
 echo "系统时间: $timezone $sys_time"
 echo "-------------"
 echo "运行时长: $uptime_formatted"
-# 颜色定义
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-_yellow() { echo -e "${YELLOW}$1${NC}"; }
-_red() { echo -e "${RED}$1${NC}"; }
+
 # 硬盘 I/O 测试
 io_test() {
-    result=$(dd if=/dev/zero of=tempfile bs=1M count=$1 oflag=direct 2>&1 | grep -oP '[0-9.]+ (MB|GB)/s' || echo "N/A")
+    local count=$1
+    result=$(dd if=/dev/zero of=tempfile bs=1M count=$count oflag=direct 2>&1 | grep -oP '[0-9.]+ (MB|GB)/s' || echo "N/A")
     rm -f tempfile
     echo "$result"
 }
@@ -266,13 +278,13 @@ print_io_test() {
         io2=$(io_test ${writemb})
         io3=$(io_test ${writemb})
         ioraw1=$(echo "$io1" | awk '{print $1}' || echo 0)
-        [[ "$(echo "$io1" | awk '{print $2}')" == "GB/s" ]] && ioraw1=$(awk 'BEGIN{print '"$ioraw1"' * 1024}')
+        [[ "$(echo "$io1" | awk '{print $2}')" == "GB/s" ]] && ioraw1=$(awk "BEGIN {print $ioraw1 * 1024}")
         ioraw2=$(echo "$io2" | awk '{print $1}' || echo 0)
-        [[ "$(echo "$io2" | awk '{print $2}')" == "GB/s" ]] && ioraw2=$(awk 'BEGIN{print '"$ioraw2"' * 1024}')
+        [[ "$(echo "$io2" | awk '{print $2}')" == "GB/s" ]] && ioraw2=$(awk "BEGIN {print $ioraw2 * 1024}")
         ioraw3=$(echo "$io3" | awk '{print $1}' || echo 0)
-        [[ "$(echo "$io3" | awk '{print $2}')" == "GB/s" ]] && ioraw3=$(awk 'BEGIN{print '"$ioraw3"' * 1024}')
-        ioall=$(awk 'BEGIN{print '"$ioraw1"' + '"$ioraw2"' + '"$ioraw3"'}')
-        ioavg=$(awk 'BEGIN{printf "%.2f", '"$ioall"' / 3}' 2>/dev/null || echo "N/A")
+        [[ "$(echo "$io3" | awk '{print $2}')" == "GB/s" ]] && ioraw3=$(awk "BEGIN {print $ioraw3 * 1024}")
+        ioall=$(awk "BEGIN {print $ioraw1 + $ioraw2 + $ioraw3}")
+        ioavg=$(awk "BEGIN {printf \"%.2f\", $ioall / 3}" 2>/dev/null || echo "N/A")
         echo -e "\n硬盘性能测试结果如下："
         printf "%-25s %s\n" "硬盘I/O (第一次测试) :" "$(_yellow "$io1")"
         printf "%-25s %s\n" "硬盘I/O (第二次测试) :" "$(_yellow "$io2")"
@@ -289,11 +301,11 @@ print_io_test() {
         else
             disk_type="未知"
         fi
-        if [[ "$ioavg" != "N/A" ]] && (( $(echo "$ioavg > 500" | bc -l 2>/dev/null || echo 0) )); then
+        if [[ "$ioavg" != "N/A" ]] && [ "$(echo "$ioavg > 500" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
             performance_level="优秀"
-        elif [[ "$ioavg" != "N/A" ]] && (( $(echo "$ioavg > 200" | bc -l 2>/dev/null || echo 0) )); then
+        elif [[ "$ioavg" != "N/A" ]] && [ "$(echo "$ioavg > 200" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
             performance_level="好"
-        elif [[ "$ioavg" != "N/A" ]] && (( $(echo "$ioavg > 100" | bc -l 2>/dev/null || echo 0) )); then
+        elif [[ "$ioavg" != "N/A" ]] && [ "$(echo "$ioavg > 100" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
             performance_level="一般"
         else
             performance_level="差"
@@ -306,6 +318,7 @@ print_io_test() {
     fi
 }
 print_io_test
+
 # IPinfo 查询
 API_TOKEN="5ebf2ff2b04160"
 echo "正在执行 IPinfo 查询..."
@@ -337,8 +350,49 @@ echo "公司类型: $company_type"
 echo -e "\n\n备注："
 echo "1. ASN 编号、名称、路由和类型字段仅在付费版本中可用。"
 echo "2. 公司信息（名称、域名、类型）仅在付费版本中可用。"
+
 # IP 欺诈风险检测
 API_KEY="89c1e8dc1272cb7b1e1f162cbdcc0cf4434a06c41b4ab7f8b7f9497c0cd56e9f"
+get_current_time() {
+    date +"%Y-%m-%d %H:%M:%S"
+}
+get_public_ip() {
+    IPV4=$(curl -s https://api.ipify.org)
+    if [[ -n "$IPV4" ]]; then
+        echo "$IPV4"
+    else
+        echo "无法获取公网IPv4地址"
+        exit 1
+    fi
+}
+get_fraud_details() {
+    IP=$1
+    RESPONSE=$(curl -s "https://api.scamalytics.com/v1/score/$IP?api_key=$API_KEY")
+    SCORE=$(echo "$RESPONSE" | jq -r '.score // "null"')
+    RISK=$(echo "$RESPONSE" | jq -r '.risk // "unknown"')
+    if [[ "$SCORE" == "null" || -z "$SCORE" ]]; then
+        echo "API响应不包含有效得分，无法继续检测。"
+        exit 1
+    fi
+    echo "$SCORE $RISK"
+}
+display_fraud_score() {
+    IP=$1
+    SCORE=$2
+    RISK=$3
+    CURRENT_TIME=$(get_current_time)
+    echo -e "\n检测时间: $CURRENT_TIME"
+    echo -e "此 IP ($IP) 的欺诈得分为 $SCORE，风险等级评估：\c"
+    if [[ "$RISK" == "low" ]]; then
+        echo -e "${GREEN}低风险${NC}。"
+    elif [[ "$RISK" == "medium" ]]; then
+        echo -e "${YELLOW}中等风险${NC}。"
+    elif [[ "$RISK" == "high" ]]; then
+        echo -e "${RED}高风险！${NC}"
+    else
+        echo -e "\033[34m未知风险${NC}。"
+    fi
+}
 check_dependencies() {
     echo "检测所需依赖工具：curl 和 jq..."
     if [ -f /etc/os-release ]; then
@@ -375,55 +429,14 @@ check_dependencies() {
         echo "jq 已安装，跳过。"
     fi
 }
-get_current_time() {
-    date +"%Y-%m-%d %H:%M:%S"
-}
-get_public_ip() {
-    IPV4=$(curl -s https://api.ipify.org)
-    if [[ -n "$IPV4" ]]; then
-        echo $IPV4
-    else
-        echo "无法获取公网IPv4地址"
-        exit 1
-    fi
-}
-get_fraud_details() {
-    IP=$1
-    RESPONSE=$(curl -s "https://api.scamalytics.com/v1/score/$IP?api_key=$API_KEY")
-    SCORE=$(echo $RESPONSE | jq -r '.score // "null"')
-    RISK=$(echo $RESPONSE | jq -r '.risk // "unknown"')
-    if [[ "$SCORE" == "null" || -z "$SCORE" ]]; then
-        echo "API响应不包含有效得分，无法继续检测。"
-        exit 1
-    fi
-    echo "$SCORE $RISK"
-}
-display_fraud_score() {
-    IP=$1
-    SCORE=$2
-    RISK=$3
-    CURRENT_TIME=$(get_current_time)
-    echo -e "\n检测时间: $CURRENT_TIME"
-    echo -e "此 IP ($IP) 的欺诈得分为 $SCORE，风险等级评估：\c"
-    if [[ "$RISK" == "low" ]]; then
-        echo -e "\033[32m低风险\033[0m。"
-    elif [[ "$RISK" == "medium" ]]; then
-        echo -e "\033[33m中等风险\033[0m。"
-    elif [[ "$RISK" == "high" ]]; then
-        echo -e "\033[31m高风险！\033[0m"
-    else
-        echo -e "\033[34m未知风险\033[0m。"
-    fi
-}
-main() {
-    check_dependencies
-    IP=$(get_public_ip)
-    echo -e "正在检测当前VPS的公网 IPv4: $IP"
-    DETAILS=$(get_fraud_details $IP)
-    FRAUD_SCORE=$(echo $DETAILS | awk '{print $1}')
-    RISK_LEVEL=$(echo $DETAILS | awk '{print $2}')
-    display_fraud_score $IP $FRAUD_SCORE $RISK_LEVEL
-}
+check_dependencies
+IP=$(get_public_ip)
+echo -e "正在检测当前VPS的公网 IPv4: $IP"
+DETAILS=$(get_fraud_details "$IP")
+FRAUD_SCORE=$(echo "$DETAILS" | awk '{print $1}')
+RISK_LEVEL=$(echo "$DETAILS" | awk '{print $2}')
+display_fraud_score "$IP" "$FRAUD_SCORE" "$RISK_LEVEL"
+
 # 执行外部测试脚本
 echo -e "\n${YELLOW}执行外部测试脚本${NC}"
 echo "正在执行 IP 质量检测..."
@@ -441,25 +454,24 @@ curl -s https://nxtrace.org/nt | bash && sleep 2 && echo -e "1\n6" | nexttrace -
 echo "正在执行 Bench 性能测试..."
 curl -Lso- bench.sh | bash 2>&1 || echo "bench.sh 执行失败"
 echo ""
-echo ""
+
 # 显示测试完成提示
-echo -e "\n\033[33m37VPS主机评测：\033[31mhttps://1373737.xyz\033[0m"
-echo -e "\033[33m服务器推荐：\033[31mhttps://my.frantech.ca/aff.php?aff=4337\033[0m"
-echo -e "\033[33mYouTube频道：\033[31mhttps://www.youtube.com/@cyndiboy7881\033[0m"
-echo -e "\033[33mv2ray-agent脚本：\033[31mhttps://github.com/sinian-liu/v2ray-agent\033[0m"
+echo -e "\n${YELLOW}37VPS主机评测：${NC}\033[31mhttps://1373737.xyz\033[0m"
+echo -e "${YELLOW}服务器推荐：${NC}\033[31mhttps://my.frantech.ca/aff.php?aff=4337\033[0m"
+echo -e "${YELLOW}YouTube频道：${NC}\033[31mhttps://www.youtube.com/@cyndiboy7881\033[0m"
+echo -e "${YELLOW}v2ray-agent脚本：${NC}\033[31mhttps://github.com/sinian-liu/v2ray-agent\033[0m"
+
 # 计算总耗时
 end_time=$(date +%s)
 elapsed_time=$((end_time - start_time))
 minutes=$((elapsed_time / 60))
 seconds=$((elapsed_time % 60))
 if [ $minutes -gt 0 ]; then
-    echo -e "\033[33m所有测试已经完成，测试总耗时：\033[31m${minutes} 分钟 ${seconds} 秒\033[33m，感谢使用本脚本。\033[0m"
+    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${minutes} 分钟 ${seconds} 秒${NC}，感谢使用本脚本。"
 else
-    echo -e "\033[33m所有测试已经完成，测试总耗时：\033[31m${seconds} 秒\033[33m，感谢使用本脚本。\033[0m"
+    echo -e "${YELLOW}所有测试已经完成，测试总耗时：${NC}\033[31m${seconds} 秒${NC}，感谢使用本脚本。"
 fi
-echo -e "\033[33m下次直接输入快捷命令即可再次启动：\033[31msn\033[0m"
-EOF
-)'" "$LOG_FILE"
+echo -e "${YELLOW}下次直接输入快捷命令即可再次启动：${NC}\033[31msn\033[0m"
 
 # 清理日志中的 ANSI 颜色代码
 sed -i 's/\x1B\[[0-9;]*[mK]//g' "$LOG_FILE"
