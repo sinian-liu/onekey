@@ -1,4 +1,8 @@
 #!/bin/bash
+# 设置环境变量以确保 UTF-8 编码
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+
 # 检查是否为首次运行
 FIRST_RUN_FLAG="/root/.first_run_done"
 if [ ! -f "$FIRST_RUN_FLAG" ]; then
@@ -190,9 +194,9 @@ while true; do
     sleep 120
 done &
 
-# 捕获所有输出到日志文件，同时输出到终端
+# 捕获所有输出到日志文件，同时输出到终端，移除 ANSI 颜色代码
 LOG_FILE="/root/test_log.txt"
-exec > >(tee -a "$LOG_FILE")
+exec > >(tee -a >(sed 's/\x1B\[[0-9;]*[mK]//g' > "$LOG_FILE"))
 exec 2>&1
 
 # 记录开始时间
@@ -482,7 +486,7 @@ _red() {
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m' # 无颜色
-# 模拟硬盘 I/O 性能测试函数 (需要根据你的系统实际情况替换为真实的 I/O 测试命令)
+# 模拟硬盘 I/O 性能测试函数
 io_test() {
     result=$(dd if=/dev/zero of=tempfile bs=1M count=$1 oflag=direct 2>&1 | grep -oP '[0-9.]+ (MB|GB)/s')
     rm -f tempfile # 删除临时文件
@@ -741,7 +745,7 @@ echo -e "\033[33m下次直接输入快捷命令即可再次启动：\033[31msn\0
 
 # 生成 HTML 报告
 REPORT_FILE="/root/test_report.html"
-echo "<html><head><title>VPS Test Report</title><style>body{font-family:monospace;}</style></head><body><pre>" > "$REPORT_FILE"
+echo "<html><head><title>VPS Test Report</title><meta charset=\"UTF-8\"><style>body{font-family:monospace;}</style></head><body><pre>" > "$REPORT_FILE"
 cat "$LOG_FILE" >> "$REPORT_FILE"
 echo "</pre></body></html>" >> "$REPORT_FILE"
 echo "HTML 报告已生成：$REPORT_FILE"
