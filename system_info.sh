@@ -23,7 +23,7 @@ if [ ! -f "$FIRST_RUN_FLAG" ]; then
     # 安装常用依赖
     install_required_tools() {
         echo "检查并安装缺少的工具..."
-        local tools=("jq" "curl" "coreutils" "fio" "tar" "iperf3" "mtr" "wget" "unzip" "zip" "net-tools" "bc" "wkhtmltopdf")
+        local tools=("jq" "curl" "coreutils" "fio" "tar" "iperf3" "mtr" "wget" "unzip" "zip" "net-tools" "bc" "wkhtmltopdf" "pngquant")
         for tool in "${tools[@]}"; do
             if ! command -v "${tool%% *}" &>/dev/null; then
                 echo "$tool 未安装，正在安装..."
@@ -47,16 +47,23 @@ if [ ! -f "$FIRST_RUN_FLAG" ]; then
         else
             echo "lsb-release 已安装。"
         fi
-        # 安装 Python
+        # 安装 Python 和 Pillow
         if ! command -v python3 &>/dev/null; then
             echo "Python 未安装，正在安装..."
             if [[ -f /etc/debian_version ]]; then
-                sudo apt install -y python3
+                sudo apt install -y python3 python3-pip
             elif [[ -f /etc/redhat-release ]]; then
-                sudo yum install -y python3
+                sudo yum install -y python3 python3-pip
             fi
         else
             echo "Python 已安装。"
+        fi
+        # 安装 Pillow
+        if ! python3 -c "import PIL" &>/dev/null; then
+            echo "Pillow 未安装，正在安装..."
+            sudo pip3 install pillow
+        else
+            echo "Pillow 已安装。"
         fi
         # 安装中文字体
         if [[ -f /etc/debian_version ]]; then
@@ -94,8 +101,45 @@ LOG_FILE="/root/test_log.txt"
 rm -f "$LOG_FILE"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# 检查 DNS 配置
+check_dns() {
+    echo "检查系统 DNS 配置..."
+    if [ -s /etc/resolv.conf ]; then
+        echo "当前 DNS 服务器："
+        cat /etc/resolv.conf | grep nameserver
+        if nslookup google.com >/dev/null 2>&1; then
+            echo "DNS 解析正常。"
+            return 0
+        else
+            echo "DNS 解析失败，尝试配置备用 DNS..."
+            sudo bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
+            sudo bash -c 'echo "nameserver 1.1.1.1" >> /etc/resolv.conf'
+            echo "已配置备用 DNS（8.8.8.8 和 1.1.1.1）。"
+            if nslookup google.com >/dev/null 2>&1; then
+                echo "备用 DNS 解析正常。"
+                return 0
+            else
+                echo "备用 DNS 仍然无法解析，请检查网络连接或防火墙设置（UDP 53 端口）。"
+                return 1
+            fi
+        fi
+    else
+        echo "DNS 配置文件 /etc/resolv.conf 为空，配置备用 DNS..."
+        sudo bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
+        sudo bash -c 'echo "nameserver 1.1.1.1" >> /etc/resolv.conf'
+        echo "已配置备用 DNS（8.8.8.8 和 1.1.1.1）。"
+        if nslookup google.com >/dev/null 2>&1; then
+            echo "备用 DNS 解析正常。"
+            return 0
+        else
+            echo "备用 DNS 仍然无法解析，请检查网络连接或防火墙设置（UDP 53 端口）。"
+            return 1
+        fi
+    fi
+}
+check_dns || echo "警告：DNS 配置有问题，可能影响 nexttrace 测试。"
+
 # 内部脚本内容
-# 记录开始时间
 start_time=$(date +%s)
 
 # 设置快捷命令
@@ -476,8 +520,15 @@ echo -e "${YELLOW}下次直接输入快捷命令即可再次启动：${NC}\033[3
 # 清理日志中的 ANSI 颜色代码
 sed -i 's/\x1B\[[0-9;]*[mK]//g' "$LOG_FILE"
 
-# 生成 HTML 报告
-REPORT_FILE="/root/test_report.html"
+# 生成报告文件名（带时间戳）
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+REPORT_FILE="/root/test_report_${TIMESTAMP}.html"
+IMAGE_FILE="/root/test_report_${TIMESTAMP}.png"
+EXTRACTED_REPORT_FILE="/root/extracted_report_${TIMESTAMP}.html"
+EXTRACTED_IMAGE_FILE="/root/extracted_report_${TIMESTAMP}.png"
+COMPRESSED_IMAGE_FILE="/root/extracted_report_compressed_${TIMESTAMP}.png"
+
+# 生成完整 HTML 报告
 cat <<EOF > "$REPORT_FILE"
 <html>
 <head>
@@ -504,28 +555,188 @@ cat <<EOF > "$REPORT_FILE"
     </style>
 </head>
 <body>
-    <h1>VPS 测试报告</h1>
+    <h1>VPS 测试报告 (${TIMESTAMP})</h1>
     <pre>
 $(cat "$LOG_FILE")
     </pre>
 </body>
 </html>
 EOF
-echo "HTML 报告已生成：$REPORT_FILE"
+echo "完整 HTML 报告已生成：$REPORT_FILE"
 
-# 生成图片报告
-IMAGE_FILE="/root/test_report.png"
+# 生成完整图片报告
 if command -v wkhtmltoimage &>/dev/null; then
-    echo "正在生成图片报告..."
+    echo "正在生成完整图片报告..."
     wkhtmltoimage --width 1200 --quality 90 "$REPORT_FILE" "$IMAGE_FILE" 2>/dev/null
     if [ -f "$IMAGE_FILE" ]; then
-        echo "图片报告已生成：$IMAGE_FILE"
+        echo "完整图片报告已生成：$IMAGE_FILE"
     else
-        echo "生成图片报告失败，请检查 wkhtmltoimage 是否正确安装。"
+        echo "生成完整图片报告失败，请检查 wkhtmltoimage 是否正确安装。"
     fi
 else
-    echo "wkhtmltoimage 未安装，跳过图片报告生成。"
+    echo "wkhtmltoimage 未安装，跳过完整图片报告生成。"
 fi
+
+# 生成提取报告
+echo "正在生成提取的测试报告..."
+python3 - <<'EOF'
+import re
+import os
+from datetime import datetime
+from PIL import Image
+
+# 输入日志文件
+log_path = "/root/test_log.txt"
+# 生成带时间戳的文件名
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+new_html_path = f"/root/extracted_report_{timestamp}.html"
+new_image_path = f"/root/extracted_report_{timestamp}.png"
+compressed_image_path = f"/root/extracted_report_compressed_{timestamp}.png"
+
+# 读取日志文件
+try:
+    with open(log_path, "r", encoding="utf-8") as f:
+        log_content = f.read()
+except FileNotFoundError:
+    print(f"错误：日志文件 {log_path} 不存在。请先运行测试脚本生成日志。")
+    exit(1)
+
+# 提取指定部分
+sections = []
+# 1. 系统信息查询
+sys_info = re.search(r"系统信息查询.*?运行时长:.*?\n", log_content, re.DOTALL)
+if sys_info:
+    sections.append(sys_info.group(0))
+
+# 2. 硬盘 I/O 性能测试
+disk_test = re.search(r"硬盘 I/O 性能测试.*?测试数据不是百分百准确，以官方宣称为主。", log_content, re.DOTALL)
+if disk_test:
+    sections.append(disk_test.group(0))
+
+# 3. 基础信息（Maxmind 数据库）
+maxmind = re.search(r"一、基础信息（Maxmind 数据库）.*?使用地：.*?\n", log_content, re.DOTALL)
+if maxmind:
+    sections.append(maxmind.group(0))
+
+# 4. IP类型属性
+ip_type = re.search(r"二、IP类型属性.*?公司类型：.*?\n", log_content, re.DOTALL)
+if ip_type:
+    sections.append(ip_type.group(0))
+
+# 5. 风险评分
+risk_score = re.search(r"三、风险评分.*?DB-IP：.*?\n", log_content, re.DOTALL)
+if risk_score:
+    sections.append(risk_score.group(0))
+
+# 6. 风险因子
+risk_factor = re.search(r"四、风险因子.*?滥用：.*?\n", log_content, re.DOTALL)
+if risk_factor:
+    sections.append(risk_factor.group(0))
+
+# 7. 流媒体及AI服务解锁检测
+streaming = re.search(r"五、流媒体及AI服务解锁检测.*?地区：.*?\n", log_content, re.DOTALL)
+if streaming:
+    sections.append(streaming.group(0))
+
+# 8. 邮局连通性及黑名单检测
+mail_blacklist = re.search(r"六、邮局连通性及黑名单检测.*?黑名单 \d+", log_content, re.DOTALL)
+if mail_blacklist:
+    sections.append(mail_blacklist.group(0))
+
+# 9. 北京/上海/广州/成都 三网回程线路测试
+backtrace = re.search(r"项目地址: https://github.com/zhanghanyun/backtrace.*?2025/\d{2}/\d{2} \d{2}:\d{2}:\d{2} 测试完成!", log_content, re.DOTALL)
+if backtrace:
+    sections.append(backtrace.group(0))
+
+# 10. 大陆三网+教育网 IPv4 单线程测速
+speedtest = re.search(r"大陆三网\+教育网 IPv4 单线程测速.*?电信 江苏南京 5G.*?\n", log_content, re.DOTALL)
+if speedtest:
+    sections.append(speedtest.group(0))
+
+# 11. Multination 流媒体解锁检测
+multination = re.search(r"============\[ Multination \]============.*?---CA---.*?Crave:.*?\n", log_content, re.DOTALL)
+if multination:
+    sections.append(multination.group(0))
+
+# 12. Bench.sh 性能测试
+bench = re.search(r"-------------------- A Bench.sh Script By Teddysun -------------------.*?Timestamp :.*?\n", log_content, re.DOTALL)
+if bench:
+    sections.append(bench.group(0))
+
+# 检查是否提取到内容
+if not sections:
+    print("错误：未从日志文件中提取到任何指定部分，请检查日志内容或正则表达式。")
+    exit(1)
+
+# 生成新 HTML
+extracted_content = "\n".join(sections)
+html_template = f"""
+<html>
+<head>
+    <title>Extracted VPS Test Report ({timestamp})</title>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Noto Sans CJK SC', monospace;
+            background-color: #2e2e2e;
+            color: #ffffff;
+            margin: 20px;
+            padding: 20px;
+            font-size: 12px; /* 减小字体以优化大小 */
+        }}
+        pre {{
+            background-color: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }}
+        h1 {{
+            color: #f0c674;
+            font-size: 16px; /* 减小标题字体 */
+        }}
+    </style>
+</head>
+<body>
+    <h1>提取的 VPS 测试报告 ({timestamp})</h1>
+    <pre>
+{extracted_content}
+    </pre>
+</body>
+</html>
+"""
+with open("{new_html_path}", "w", encoding="utf-8") as f:
+    f.write(html_template)
+print(f"提取的 HTML 报告已生成：{new_html_path}")
+
+# 生成图片报告
+if os.system(f"wkhtmltoimage --width 800 --quality 90 {new_html_path} {new_image_path} 2>/dev/null") == 0:
+    print(f"提取的图片报告已生成：{new_image_path}")
+else:
+    print("生成提取的图片报告失败，请检查 wkhtmltoimage 是否正确安装。")
+    exit(1)
+
+# 压缩图片（Pillow）
+try:
+    img = Image.open(new_image_path)
+    width = 800
+    height = int((width / img.width) * img.height)
+    img_resized = img.resize((width, height), Image.LANCZOS)
+    img_resized.save(compressed_image_path, "PNG", optimize=True, quality=70)
+    print(f"Pillow 压缩后的提取图片报告已生成：{compressed_image_path}")
+except Exception as e:
+    print(f"Pillow 压缩图片失败：{e}")
+
+# 使用 pngquant 进一步压缩
+if os.system(f"pngquant --quality=65-80 {new_image_path} -o {compressed_image_path} 2>/dev/null") == 0:
+    print(f"pngquant 压缩后的提取图片报告已生成：{compressed_image_path}")
+else:
+    print("pngquant 压缩失败，请检查 pngquant 是否正确安装。")
+EOF
+
+# 清理旧报告（保留最近 5 次）
+ls -t /root/extracted_report_*.{html,png} 2>/dev/null | tail -n +11 | xargs -I {} rm -f {}
+echo "已清理旧的提取报告，保留最近 5 次。"
 
 # 启动 Web 服务器
 PORT=8000
@@ -541,8 +752,10 @@ cd /root
 nohup python3 -m http.server $PORT --bind 0.0.0.0 > /dev/null 2>&1 &
 PUBLIC_IP=$(curl -s https://api.ipify.org)
 if [[ -n "$PUBLIC_IP" ]]; then
-    echo "图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/test_report.png"
-    echo "HTML 报告可以通过以下网址查看：http://$PUBLIC_IP:$PORT/test_report.html"
+    echo "完整图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/test_report_${TIMESTAMP}.png"
+    echo "完整 HTML 报告可以通过以下网址查看：http://$PUBLIC_IP:$PORT/test_report_${TIMESTAMP}.html"
+    echo "提取的图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/extracted_report_${TIMESTAMP}.png"
+    echo "压缩后的提取图片报告可以通过以下网址下载：http://$PUBLIC_IP:$PORT/extracted_report_compressed_${TIMESTAMP}.png"
 else
-    echo "无法获取公网 IP，报告已生成在 $REPORT_FILE 和 $IMAGE_FILE，请手动下载。"
+    echo "无法获取公网 IP，报告已生成在 $REPORT_FILE, $IMAGE_FILE, $EXTRACTED_REPORT_FILE, $EXTRACTED_IMAGE_FILE, $COMPRESSED_IMAGE_FILE，请手动下载。"
 fi
