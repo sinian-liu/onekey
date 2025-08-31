@@ -1,13 +1,78 @@
 #!/bin/bash
 
-# 每 120 秒发送一个心跳信号（2 分钟）
-while true; do
-    # 删除或注释掉 echo 语句，避免显示 "保活中..."
-    sleep 120
-done &
+# 首次运行标记文件路径
+FIRST_RUN_FILE="/root/.first_run_completed"
+
+# 心跳日志文件路径
+HEARTBEAT_LOG="/root/heartbeat.log"
+
+# 后台心跳运行函数（写入日志）
+start_heartbeat() {
+    while true; do
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - 系统保活心跳" >> "$HEARTBEAT_LOG"
+        sleep 120
+    done
+}
+
+# 启动后台心跳进程
+start_heartbeat &
 
 # 记录开始时间
 start_time=$(date +%s)
+
+# 安装缺失包函数
+install_if_missing() {
+    local pkg=$1
+    if ! command -v "$pkg" &>/dev/null; then
+        echo "$pkg 未安装，正在安装..."
+        if [[ -f /etc/debian_version ]]; then
+            sudo apt install -y "$pkg"
+        elif [[ -f /etc/redhat-release ]]; then
+            sudo yum install -y "$pkg"
+        fi
+        echo "$pkg 安装完成。"
+    else
+        echo "$pkg 已安装。"
+    fi
+}
+
+# 首次运行检查：更新系统并安装常用依赖
+if [ ! -f "$FIRST_RUN_FILE" ]; then
+    echo "首次运行，开始更新系统并安装常用依赖..."
+    
+    # 更新系统
+    update_system() {
+        echo "正在检查并更新系统..."
+        # 检查系统是否为 Debian/Ubuntu 或 CentOS
+        if [[ -f /etc/debian_version ]]; then
+            # Debian/Ubuntu 系统
+            sudo apt update && sudo apt upgrade -y
+        elif [[ -f /etc/redhat-release ]]; then
+            # CentOS 系统
+            sudo yum update -y
+        else
+            echo "未知的系统类型，跳过更新。"
+        fi
+    }
+
+    # 批量安装常用工具
+    install_required_tools() {
+        echo "批量安装常用工具..."
+        for pkg in jq curl wget git tar unzip dd fio iperf3 mtr net-tools htop traceroute; do
+            install_if_missing "$pkg"
+        done
+    }
+
+    # 执行更新和工具安装
+    update_system
+    install_required_tools
+    
+    # 创建标记文件，表示首次运行已完成
+    touch "$FIRST_RUN_FILE"
+    echo "首次运行完成，系统已更新并安装常用依赖。"
+else
+    echo "非首次运行，跳过系统更新和依赖安装。"
+fi
 
 # 增加sn为快捷启动命令，检查并创建 alias（如果没有的话）
 if ! grep -q "alias sn=" ~/.bashrc; then
@@ -31,111 +96,6 @@ sudo sed -i "s/127.0.1.1.*/127.0.1.1   $NEW_HOSTNAME/" /etc/hosts
 # 验证修改
 echo "主机名已成功修改为："
 hostnamectl
-
-# 更新系统
-update_system() {
-    echo "正在检查并更新系统..."
-    # 检查系统是否为 Debian/Ubuntu 或 CentOS
-    if [[ -f /etc/debian_version ]]; then
-        # Debian/Ubuntu 系统
-        sudo apt update && sudo apt upgrade -y
-    elif [[ -f /etc/redhat-release ]]; then
-        # CentOS 系统
-        sudo yum update -y
-    else
-        echo "未知的系统类型，跳过更新。"
-    fi
-}
-
-# 检测并安装必要的工具
-install_required_tools() {
-    echo "检查并安装缺少的工具..."
-
-    # 检查并安装 jq
-    if ! command -v jq &>/dev/null; then
-        echo "jq 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y jq
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y jq
-        fi
-    else
-        echo "jq 已安装。"
-    fi
-
-    # 检查并安装 curl
-    if ! command -v curl &>/dev/null; then
-        echo "curl 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y curl
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y curl
-        fi
-    else
-        echo "curl 已安装。"
-    fi
-
-    # 检查并安装 dd (通常 dd 工具是默认安装的)
-    if ! command -v dd &>/dev/null; then
-        echo "dd 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y coreutils
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y coreutils
-        fi
-    else
-        echo "dd 已安装。"
-    fi
-
-    # 检查并安装 fio
-    if ! command -v fio &>/dev/null; then
-        echo "fio 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y fio
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y fio
-        fi
-    else
-        echo "fio 已安装。"
-    fi
-
-    # 检查并安装 tar
-    if ! command -v tar &>/dev/null; then
-        echo "tar 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y tar
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y tar
-        fi
-    else
-        echo "tar 已安装。"
-    fi
-
-    # 检查并安装 iperf3
-    if ! command -v iperf3 &>/dev/null; then
-        echo "iperf3 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            # 设置非交互模式，避免询问是否让 iperf3 启动为守护进程
-            sudo DEBIAN_FRONTEND=noninteractive apt install -y iperf3
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y iperf3
-        fi
-    else
-        echo "iperf3 已安装。"
-    fi
-    
-    # 检查并安装 mtr
-    if ! command -v mtr &>/dev/null; then
-        echo "mtr 未安装，正在安装..."
-        if [[ -f /etc/debian_version ]]; then
-            sudo apt install -y mtr
-        elif [[ -f /etc/redhat-release ]]; then
-            sudo yum install -y mtr
-        fi
-    else
-        echo "mtr 已安装。"
-    fi
-}
 
 # 设置系统时区为中国上海
 set_timezone_to_shanghai() {
@@ -205,10 +165,6 @@ EOF'
     echo "iperf3 服务已配置为自动启动。"
 }
 
-# 执行更新和工具安装
-update_system
-install_required_tools
-
 # 设置系统时区
 set_timezone_to_shanghai
 
@@ -217,10 +173,6 @@ enable_bbr
 
 # 配置 iperf3 自动启动
 enable_iperf3_autostart
-
-# 继续执行您的其他脚本逻辑...
-
-
 
 # 颜色定义
 YELLOW='\033[1;33m'
@@ -234,9 +186,9 @@ kernel_version=$(uname -r)
 
 # CPU信息
 cpu_arch=$(uname -m)
-cpu_model=$(awk -F': ' '/model name/ {print $2; exit}' /proc/cpuinfo | xargs)
-cpu_cores=$(grep -c ^processor /proc/cpuinfo)
-cpu_frequency=$(awk -F': ' '/cpu MHz/ {print $2; exit}' /proc/cpuinfo | awk '{printf "%.4f GHz", $1 / 1000}')
+cpu_model=$(awk -F': ' '/model name/ {print $2; exit}' /proc/cuinfo | xargs)
+cpu_cores=$(grep -c ^processor /proc/cuinfo)
+cpu_frequency=$(awk -F': ' '/cpu MHz/ {print $2; exit}' /proc/cuinfo | awk '{printf "%.4f GHz", $1 / 1000}')
 cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{printf "%.1f%%", $2 + $4}')
 
 # 系统负载
@@ -605,12 +557,11 @@ main() {
 }
 
 # 执行主程序
+main
 
 # IP质量检测
 # 获取并自动输入 'y' 安装脚本
 bash <(curl -Ls IP.Check.Place) <<< "y"
-
-
 
 # 执行第一个三网回程线路脚本
 curl https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -sSf | sh
@@ -623,8 +574,10 @@ bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest
 
 # 执行流媒体平台及游戏区域限制测试脚本并自动输入 '66'
 bash <(curl -L -s check.unlock.media) <<< "66"
+
 # 全国五网ISP路由回程测试
 curl -s https://nxtrace.org/nt | bash && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace
+
 # 执行 Bench 性能测试并自动回车运行
 curl -Lso- bench.sh | bash
 
