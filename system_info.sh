@@ -375,20 +375,40 @@ display_fraud_score "$IP" "$FRAUD_SCORE" "$RISK_LEVEL"
 
 # 执行外部测试脚本
 echo -e "\n${YELLOW}执行外部测试脚本${NC}"
+run_test_with_retry() {
+    local url=$1
+    local input=$2
+    local retries=3
+    for i in $(seq 1 $retries); do
+        if curl -fsL "$url" > /tmp/test_script.sh 2>>"$EXTRACT_ERROR_LOG" && chmod +x /tmp/test_script.sh && bash /tmp/test_script.sh $input 2>>"$EXTRACT_ERROR_LOG"; then
+            rm -f /tmp/test_script.sh
+            return 0
+        else
+            echo "第 $i 次尝试 $url 失败，$((retries - i)) 次重试剩余..." >> "$EXTRACT_ERROR_LOG"
+            sleep 2
+        fi
+    done
+    echo "警告：$url 下载或执行失败。" >> "$EXTRACT_ERROR_LOG"
+    return 1
+}
+
 echo "正在执行 IP 质量检测..."
-bash <(curl -Ls IP.Check.Place) <<< "y" 2>>"$EXTRACT_ERROR_LOG" || echo "IP 质量检测执行失败" >> "$EXTRACT_ERROR_LOG"
+run_test_with_retry "https://raw.githubusercontent.com/zhucaidan/IP.Check.Place/master/IP.Check.Place" <<< "y" || echo "IP 质量检测执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行第一个三网回程线路测试..."
-curl https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -sSf | sh 2>>"$EXTRACT_ERROR_LOG" || echo "第一个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
+curl -fsL https://raw.githubusercontent.com/zhanghanyun/backtrace/main/install.sh -o /tmp/backtrace.sh 2>>"$EXTRACT_ERROR_LOG" && chmod +x /tmp/backtrace.sh && bash /tmp/backtrace.sh 2>>"$EXTRACT_ERROR_LOG" || echo "第一个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
+rm -f /tmp/backtrace.sh
 echo "正在执行第二个三网回程线路测试..."
-curl https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "第二个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
+run_test_with_retry "https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh" "" || echo "第二个三网回程线路测试执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行三网+教育网 IPv4 单线程测速..."
-bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh) <<< "2" 2>>"$EXTRACT_ERROR_LOG" || echo "三网+教育网 IPv4 单线程测速执行失败" >> "$EXTRACT_ERROR_LOG"
+run_test_with_retry "https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh" <<< "2" || echo "三网+教育网 IPv4 单线程测速执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行流媒体平台及游戏区域限制测试..."
-bash <(curl -L -s check.unlock.media) <<< "66" 2>>"$EXTRACT_ERROR_LOG" || echo "流媒体平台及游戏区域限制测试执行失败" >> "$EXTRACT_ERROR_LOG"
+run_test_with_retry "https://check.unlock.media" <<< "66" || echo "流媒体平台及游戏区域限制测试执行失败" >> "$EXTRACT_ERROR_LOG"
 echo "正在执行全国五网ISP路由回程测试..."
-curl -s https://nxtrace.org/nt | bash -s && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace 2>>"$EXTRACT_ERROR_LOG" || echo "全国五网ISP路由回程测试执行失败" >> "$EXTRACT_ERROR_LOG"
+curl -fsL https://nxtrace.org/nt -o /tmp/nexttrace.sh 2>>"$EXTRACT_ERROR_LOG" && chmod +x /tmp/nexttrace.sh && bash /tmp/nexttrace.sh -s && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace 2>>"$EXTRACT_ERROR_LOG" || echo "全国五网ISP路由回程测试执行失败" >> "$EXTRACT_ERROR_LOG"
+rm -f /tmp/nexttrace.sh
 echo "正在执行 Bench 性能测试..."
-curl -Lso- bench.sh | bash 2>>"$EXTRACT_ERROR_LOG" || echo "Bench 性能测试执行失败" >> "$EXTRACT_ERROR_LOG"
+curl -fsL https://raw.githubusercontent.com/teddysun/across/master/bench.sh -o /tmp/bench.sh 2>>"$EXTRACT_ERROR_LOG" && chmod +x /tmp/bench.sh && bash /tmp/bench.sh 2>>"$EXTRACT_ERROR_LOG" || echo "Bench 性能测试执行失败" >> "$EXTRACT_ERROR_LOG"
+rm -f /tmp/bench.sh
 
 echo -e "\n${YELLOW}37VPS主机评测：${NC}\033[31mhttps://1373737.xyz\033[0m"
 echo -e "${YELLOW}服务器推荐：${NC}\033[31mhttps://my.frantech.ca/aff.php?aff=4337\033[0m"
@@ -450,7 +470,7 @@ convert_ansi_to_html() {
 extract_section() {
     local pattern=$1
     local end_pattern=$2
-    if grep -A 50 "$pattern" "$LOG_FILE" | sed -n "/$pattern/,/$end_pattern/p" | while read -r line; do
+    if grep -A 50 -F "$pattern" "$LOG_FILE" | sed -n "/$pattern/,/$end_pattern/p" | while read -r line; do
         converted_line=$(convert_ansi_to_html "$line")
         echo "$converted_line" >> "$EXTRACT_LOG"
     done; then
