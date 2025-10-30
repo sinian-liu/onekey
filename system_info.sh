@@ -665,6 +665,10 @@ bash <(curl -L -s check.unlock.media) <<< "66"
 # 全国五网ISP路由回程测试
 curl -s https://nxtrace.org/nt | bash && sleep 2 && echo -e "1\n6" | nexttrace --fast-trace
 
+# 三网回程路由测试（Net.Check.Place）- 自动选择 y 继续
+echo -e "\n# 三网回程路由测试（Net.Check.Place）"
+bash <(curl -Ls https://Net.Check.Place) -R <<< "y"
+
 # 执行 Bench 性能测试并自动回车运行
 curl -Lso- bench.sh | bash
 
